@@ -17,21 +17,21 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(spec)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency 'redis-rb'
+  spec.add_dependency 'redis'
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
   spec.add_development_dependency 'rspec'
-  spec.add_development_dependency 'guard'
-  spec.add_development_dependency 'guard-rspec'
-  spec.add_development_dependency 'simplecov'
-  spec.add_development_dependency 'simplecov-rcov'
-  spec.add_development_dependency 'rspec_junit_formatter'
-  spec.add_development_dependency 'rb-inotify', :require => false
-  spec.add_development_dependency 'rb-fsevent', :require => false
-  spec.add_development_dependency 'rb-fchange', :require => false
-  spec.add_development_dependency 'ruby_gntp', :require => false
-  spec.add_development_dependency 'sidekiq'
+  # spec.add_development_dependency 'guard'
+  # spec.add_development_dependency 'guard-rspec'
+  # spec.add_development_dependency 'simplecov'
+  # spec.add_development_dependency 'simplecov-rcov'
+  # spec.add_development_dependency 'rspec_junit_formatter'
+  # spec.add_development_dependency 'rb-inotify'
+  # spec.add_development_dependency 'rb-fsevent'
+  # spec.add_development_dependency 'rb-fchange'
+  # spec.add_development_dependency 'ruby_gntp'
+  spec.add_dependency 'sidekiq'
 
   # spec.add_development_dependency 'evented-spec'
   # spec.add_development_dependency 'rack-test'

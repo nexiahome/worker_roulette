@@ -7,12 +7,13 @@ RSpec::Core::RakeTask.new
 task :default => :spec
 task :test => :spec
 
-def rspec_out_file
-  require 'rspec_junit_formatter'
-  "-f RspecJunitFormatter -o results.xml"
-end
+# def rspec_out_file
+#   require 'rspec_junit_formatter'
+#   "-f RspecJunitFormatter -o results.xml"
+# end
 
 desc "Run all unit and integration tests"
-task :'spec:ci' do  
-  sh "bundle exec rspec #{rspec_out_file} spec"  
+task :'spec:ci' do
+  rspec_out_file = nil
+  sh "bundle exec rspec #{rspec_out_file} spec"
 end
