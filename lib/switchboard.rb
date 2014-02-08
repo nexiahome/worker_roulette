@@ -5,4 +5,5 @@ Dir[File.join(File.dirname(__FILE__),'switchboard','**','*.rb')].sort.each { |fi
 
 module Switchboard
   JOB_BOARD = "job_board"
+  JOB_NOTIFICATIONS = "new_job_ready"
 end

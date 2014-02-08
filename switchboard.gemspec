@@ -24,10 +24,10 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency 'rspec'
   spec.add_development_dependency 'pry-debugger'
-  spec.add_development_dependency 'guard'
-  spec.add_development_dependency 'guard-rspec'
-  spec.add_development_dependency 'simplecov'
-  spec.add_development_dependency 'simplecov-rcov'
-  spec.add_development_dependency 'rspec_junit_formatter'
-  spec.add_development_dependency 'sidekiq'
+  # spec.add_development_dependency 'guard'
+  # spec.add_development_dependency 'guard-rspec'
+  # spec.add_development_dependency 'simplecov'
+  # spec.add_development_dependency 'simplecov-rcov'
+  # spec.add_development_dependency 'rspec_junit_formatter'
+  # spec.add_development_dependency 'sidekiq'
 end

@@ -5,7 +5,9 @@ describe Switchboard do
   let(:namespace) {:sixties_telephony}
   let(:messages) {["hello", "operator"]}
   let(:raw_redis_client) {Redis.new}
+  let(:other_raw_redis_client) {Redis.new}
   let(:redis) {Redis::Namespace.new(namespace, redis: raw_redis_client)}
+  let(:other_redis) {Redis::Namespace.new(namespace, redis: other_raw_redis_client)}
 
   before {redis.flushdb}
 
@@ -55,12 +57,31 @@ describe Switchboard do
       redis.get(subject.counter_key).should == nil
       subject.enqueue(messages.first)
       redis.get(subject.counter_key).should == "1"
+      subject.enqueue(messages.last)
+      redis.get(subject.counter_key).should == "2"
+    end
+
+    it "should publish a notification that a new job is ready" do
+      result = nil
+      other_redis.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
+        on.subscribe do |channel, subscription|
+          subject.enqueue(messages)
+        end
+
+        on.message do |channel, notification|
+          result = notification
+          other_redis.unsubscribe(Switchboard::JOB_NOTIFICATIONS)
+        end
+     end
+
+      result.should == Switchboard::JOB_NOTIFICATIONS
     end
   end
 
   context Subscriber do
+    let(:raw_redis_subscriber) {Redis.new}
     let(:operator) {Operator.new(namespace, sender, raw_redis_client)}
-    let(:subject)  {Subscriber.new(namespace, raw_redis_client)}
+    let(:subject)  {Subscriber.new(namespace, raw_redis_client, raw_redis_subscriber)}
 
     before do
       operator.enqueue(messages.first)
@@ -93,9 +114,18 @@ describe Switchboard do
       redis.zrange(subject.job_board_key, 0, -1).should == []
     end
 
-    it "should get the sender_id and message list transactionally" do
+    it "should get the sender and message list transactionally" do
       raw_redis_client.should_receive(:multi).and_call_original
       subject.messages!
+    end
+
+    it "should get the messages from the next sender's slot when a new job is ready" do
+      subject.messages!
+      subject.should_receive(:messages!).and_call_original
+      publisher = -> {operator.enqueue(messages)}
+      subject.wait_for_messages(publisher) do |redis_messages|
+        redis_messages.should == messages
+      end
     end
 
     context "Failure" do
@@ -107,6 +137,7 @@ describe Switchboard do
       it "should pool its connections"
       it "should reconnect if it looses its connection"
       it "should be fork() proof"
+      it "should use non-blocking I/O"
     end
   end
 end

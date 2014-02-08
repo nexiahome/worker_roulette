@@ -22,6 +22,7 @@ module Switchboard
       @redis.multi do
         @redis.zadd(Switchboard::JOB_BOARD, @count, sender)
         @redis.rpush(sender, message)
+        @redis.publish(Switchboard::JOB_NOTIFICATIONS, Switchboard::JOB_NOTIFICATIONS)
       end
     end
   end
