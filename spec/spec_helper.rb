@@ -1,3 +1,4 @@
+require 'switchboard'
 # require 'simplecov'
 # require 'simplecov-rcov'
 # class SimpleCov::Formatter::MergedFormatter
@@ -12,6 +13,10 @@
 require File.expand_path(File.join("..", "..", "lib", "switchboard.rb"), __FILE__)
 include Switchboard
 
-# require 'pry'
-
 Dir[File.join(File.dirname(__FILE__), 'helpers', '**/*.rb')].sort.each { |file| require file.gsub(".rb", "")}
+
+# RSpec.configure do |c|
+#   after(:each) do
+#     Redis.new.flushall
+#   end
+# end
