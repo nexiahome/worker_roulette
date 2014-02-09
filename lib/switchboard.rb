@@ -9,21 +9,18 @@ module Switchboard
   JOB_BOARD = "job_board"
   JOB_NOTIFICATIONS = "new_job_ready"
 
-  def self.start(default_namespace, pool_size, config = {host: 'localhost'})
-    @@default_namespace = default_namespace
+  def self.start(pool_size, config = {host: 'localhost'})
     @@pooled_redis_clients     = Redis::Pool.new(config.merge({size: pool_size})
     @@pooled_redis_subscribers = Redis::Pool.new(config.merge({size: pool_size})
   end
 
-  def self.operator(sender, namespace = nil)
-    raise "Switchboard not Started" unless @@default_namespace
-    namespace ||= @@default_namespace
+  def self.operator(namespace, sender)
+    raise "Switchboard not Started" unless @@pooled_redis_clients
     Operator.new(namespace, sender, @@pooled_redis_clients)
   end
 
-  def self.subscriber(namespace = nil)
-    raise "Switchboard not Started" unless @@default_namespace
-    namespace ||= @@default_namespace
-    Subscriber.new(namespace, sender, @@pooled_redis_clients, @@pooled_redis_subscribers)
+  def self.subscriber(namespace)
+    raise "Switchboard not Started" unless @@pooled_redis_clients
+    Subscriber.new(namespace, @@pooled_redis_clients, @@pooled_redis_subscribers)
   end
 end

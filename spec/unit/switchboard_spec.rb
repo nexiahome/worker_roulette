@@ -158,6 +158,7 @@ describe Switchboard do
       it "should reconnect if it looses its connection"
       it "should be fork() proof"
       it "should use non-blocking I/O"
+      it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
     end
   end
 end
