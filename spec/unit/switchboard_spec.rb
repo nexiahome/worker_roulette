@@ -4,6 +4,8 @@ describe Switchboard do
   let(:sender) {:katie_80}
   let(:namespace) {:sixties_telephony}
   let(:messages) {["hello", "operator"]}
+  let(:messages_with_headers) {[{headers: {sender: sender}, payload: "hello"}, {headers: {sender: sender}, payload: "operator"}]}
+  let(:jsonized_messages_with_headers) {Oj.dump(messages_with_headers)}
   let(:raw_redis_client) {Redis.new}
   let(:other_raw_redis_client) {Redis.new}
   let(:redis) {Redis::Namespace.new(namespace, redis: raw_redis_client)}
@@ -37,9 +39,21 @@ describe Switchboard do
       redis.lrange(sender, 0, -1).should == messages
     end
 
-    it "should enqueue an array of messages in the sender's slot in the switchboard" do
-      subject.enqueue(messages)
+    it "should enqueue an array of messages without headers in the sender's slot in the switchboard" do
+      subject.enqueue_without_headers(messages)
       redis.lrange(sender, 0, -1).should == messages
+    end
+
+    it "should enqueue an array of messages with default headers in the sender's slot in the switchboard" do
+      subject.enqueue(messages)
+      redis.lrange(sender, 0, -1).should == jsonized_messages_with_headers
+    end
+
+    it "should enqueue an array of messages with additional headers in the sender's slot in the switchboard" do
+      extra_headers = {foo: :bars}
+      subject.enqueue(messages, extra_headers)
+      messages_with_headers.map! {|message| message[:headers].merge!(extra_headers)}
+      redis.lrange(sender, 0, -1).should == Oj.dump(messages_with_headers)
     end
 
     it "should post the sender's id to the job board with an order number" do
@@ -84,8 +98,7 @@ describe Switchboard do
     let(:subject)  {Subscriber.new(namespace, raw_redis_client, raw_redis_subscriber)}
 
     before do
-      operator.enqueue(messages.first)
-      operator.enqueue(messages.last)
+      operator.enqueue(messages)
     end
 
     it "should be working on behalf of a sender" do
@@ -103,7 +116,14 @@ describe Switchboard do
     end
 
     it "should drain all the messages from the sender's slot in the switchboard" do
-      subject.messages!.should == messages
+      subject.messages!.should == messages_with_headers
+      subject.messages!.should == []
+      subject.messages!.should == [] #does not throw an error if queue is alreay empty
+    end
+
+    it "should drain all the messages from the sender's slot in the switchboard" do
+      operator.enqueue(messages)
+      subject.messages!.should == [messages_with_headers, messages_with_headers]
       subject.messages!.should == []
       subject.messages!.should == [] #does not throw an error if queue is alreay empty
     end
@@ -124,7 +144,7 @@ describe Switchboard do
       subject.should_receive(:messages!).and_call_original
       publisher = -> {operator.enqueue(messages)}
       subject.wait_for_messages(publisher) do |redis_messages|
-        redis_messages.should == messages
+        redis_messages.should == messages_with_headers
       end
     end
 
