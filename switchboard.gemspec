@@ -19,6 +19,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'redis'
   spec.add_dependency 'redis-namespace'
+  spec.add_dependency 'redis-pool'
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
