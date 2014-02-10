@@ -1,5 +1,7 @@
 require "switchboard/version"
 require 'redis'
+require 'hiredis'
+require 'redis/connection/hiredis'
 require 'redis-namespace'
 require 'redis/pool'
 require 'oj'

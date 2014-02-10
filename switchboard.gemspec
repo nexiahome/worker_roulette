@@ -21,6 +21,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'redis-namespace'
   spec.add_dependency 'redis-pool'
   spec.add_dependency 'oj'
+  spec.add_dependency 'hiredis', '~> 0.4.5'
+  # spec.add_dependency 'em-synchrony'
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
