@@ -25,7 +25,7 @@ module Switchboard
         @redis.del(sender)
         @redis.zrem(Switchboard::JOB_BOARD, sender)
       end
-      (results || []).first.map {|message| Oj.load(message)}
+      ((results || []).first || []).map {|message| Oj.load(message)}
     end
 
   private
