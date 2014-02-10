@@ -112,12 +112,12 @@ describe Switchboard do
       subject.namespace.should == namespace
     end
 
-    it "should be injected with a raw_redis_client so it can do is work" do
+    it "should be injected with a raw_redis_client so it can do its work" do
       raw_redis_client.should_receive(:lrange).and_call_original
       subject.messages!
     end
 
-    it "should drain all the messages from the sender's slot in the switchboard" do
+    it "should drain one set of messages from the sender's slot in the switchboard" do
       subject.messages!.should == [messages_with_headers]
       subject.messages!.should == []
       subject.messages!.should == [] #does not throw an error if queue is alreay empty
@@ -130,10 +130,14 @@ describe Switchboard do
       subject.messages!.should == [] #does not throw an error if queue is alreay empty
     end
 
-    it "should take the most recent sender_id off the job board" do
-      redis.zrange(subject.job_board_key, 0, -1).should == [sender.to_s]
+    it "should take the oldest sender off the job board (FIFO)" do
+      oldest_sender = sender.to_s
+      most_recent_sender = 'most_recent_sender'
+      most_recent_operator = Operator.new(namespace, most_recent_sender, raw_redis_client)
+      most_recent_operator.enqueue(messages)
+      redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
       subject.messages!
-      redis.zrange(subject.job_board_key, 0, -1).should == []
+      redis.zrange(subject.job_board_key, 0, -1).should == [most_recent_sender]
     end
 
     it "should get the sender and message list transactionally" do

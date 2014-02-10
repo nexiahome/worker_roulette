@@ -30,7 +30,7 @@ module Switchboard
 
   private
     def setup
-      @sender = (@redis.zrevrange(Switchboard::JOB_BOARD, -1, -1) || []).first.to_s.to_sym
+      @sender = (@redis.zrange(Switchboard::JOB_BOARD, 0, 0) || []).first.to_s.to_sym
     end
   end
 end
