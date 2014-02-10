@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.name          = "switchboard"
   spec.version       = Switchboard::VERSION
   spec.authors       = ["Paul Saieg"]
-  spec.email         = ["paul.saieg@irco.com"]
+  spec.email         = ["classicist@gmail.com"]
   spec.description   = %q{Write a gem description}
   spec.summary       = %q{Write a gem summary}
   spec.homepage      = ""
