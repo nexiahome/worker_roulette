@@ -10,9 +10,9 @@ describe Switchboard do
   let(:messages_with_headers) {default_headers.merge({payload: messages})}
   let(:jsonized_messages_with_headers) {[Oj.dump(messages_with_headers)]}
   let(:raw_redis_client) {Redis.new}
-  let(:other_raw_redis_client) {Redis.new}
+  let(:raw_redis_subscriber) {Redis.new}
   let(:redis) {Redis::Namespace.new(namespace, redis: raw_redis_client)}
-  let(:other_redis) {Redis::Namespace.new(namespace, redis: other_raw_redis_client)}
+  let(:redis_subscriber) {Redis::Namespace.new(namespace, redis: raw_redis_subscriber)}
 
   before {redis.flushdb}
 
@@ -80,14 +80,14 @@ describe Switchboard do
 
     it "should publish a notification that a new job is ready" do
       result = nil
-      other_redis.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
+      redis_subscriber.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
         on.subscribe do |channel, subscription|
           subject.enqueue(messages)
         end
 
         on.message do |channel, notification|
           result = notification
-          other_redis.unsubscribe(Switchboard::JOB_NOTIFICATIONS)
+          redis_subscriber.unsubscribe(Switchboard::JOB_NOTIFICATIONS)
         end
      end
 
@@ -96,7 +96,6 @@ describe Switchboard do
   end
 
   context Subscriber do
-    let(:raw_redis_subscriber) {Redis.new}
     let(:operator) {Operator.new(namespace, sender, raw_redis_client)}
     let(:subject)  {Subscriber.new(namespace, raw_redis_client, raw_redis_subscriber)}
 
@@ -156,12 +155,20 @@ describe Switchboard do
     end
 
     context "Concurrent Access" do
-      it "should work in sidekiq"
-      it "should pool its connections"
-      it "should reconnect if it looses its connection"
+
+      it "should pool its connections" do
+        connections_outside_of_pool = 4
+        pool_size = 10
+        Switchboard.start(pool_size)
+        Array.new(100) {Thread.new {Switchboard.pooled_redis_subscriber.get("foo")}}.each(&:join)
+        Switchboard.pooled_redis_client.info["connected_clients"].to_i.should == (pool_size + connections_outside_of_pool)
+      end
+
       it "should be fork() proof"
-      it "should use non-blocking I/O"
+      it "should reconnect if it looses its connection"
+      it "should use optionally non-blocking I/O"
       it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
+      it "should work in sidekiq"
     end
   end
 end

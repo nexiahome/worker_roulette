@@ -16,12 +16,20 @@ module Switchboard
   end
 
   def self.operator(namespace, sender)
-    raise "Switchboard not Started" unless @@pooled_redis_clients
-    Operator.new(namespace, sender, @@pooled_redis_clients)
+    raise "Switchboard not Started" unless pooled_redis_client
+    Operator.new(namespace, sender, pooled_redis_client)
   end
 
   def self.subscriber(namespace)
-    raise "Switchboard not Started" unless @@pooled_redis_clients
-    Subscriber.new(namespace, @@pooled_redis_clients, @@pooled_redis_subscribers)
+    raise "Switchboard not Started" unless pooled_redis_client
+    Subscriber.new(namespace, pooled_redis_client, pooled_redis_subscriber)
+  end
+
+  def self.pooled_redis_client
+    @@pooled_redis_clients
+  end
+
+  def self.pooled_redis_subscriber
+    @@pooled_redis_subscribers
   end
 end
