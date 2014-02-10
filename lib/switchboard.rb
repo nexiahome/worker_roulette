@@ -1,7 +1,8 @@
 require "switchboard/version"
 require 'redis'
 require 'redis-namespace'
-require 'redis-pool'
+require 'redis/pool'
+require 'oj'
 
 Dir[File.join(File.dirname(__FILE__),'switchboard','**','*.rb')].sort.each { |file| require file.gsub(".rb", "")}
 
@@ -10,8 +11,8 @@ module Switchboard
   JOB_NOTIFICATIONS = "new_job_ready"
 
   def self.start(pool_size, config = {host: 'localhost'})
-    @@pooled_redis_clients     = Redis::Pool.new(config.merge({size: pool_size})
-    @@pooled_redis_subscribers = Redis::Pool.new(config.merge({size: pool_size})
+    @@pooled_redis_clients     = Redis::Pool.new(config.merge Hash[size: pool_size])
+    @@pooled_redis_subscribers = Redis::Pool.new(config.merge Hash[size: pool_size])
   end
 
   def self.operator(namespace, sender)

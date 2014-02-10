@@ -21,11 +21,11 @@ module Switchboard
     def messages!
       setup
       results = @redis.multi do
-        (@redis.lrange(sender, 0, -1) || []).map {|message| Oj.load(message)}
+        @redis.lrange(sender, 0, -1)
         @redis.del(sender)
         @redis.zrem(Switchboard::JOB_BOARD, sender)
       end
-      (results || []).first
+      (results || []).first.map {|message| Oj.load(message)}
     end
 
   private
