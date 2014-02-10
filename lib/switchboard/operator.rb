@@ -1,15 +1,20 @@
 module Switchboard
   class Operator
-    attr_reader :namespace, :sender, :counter_key
+    attr_reader :namespace, :sender
+    COUNTER_KEY = 'counter_key'
+
     def initialize(namespace, sender, redis_client)
       @namespace = namespace.to_sym
       @sender = sender
       @redis = Redis::Namespace.new(namespace, redis: redis_client)
-      @counter_key = "#{sender}_counter_key"
     end
 
     def job_board_key
       Switchboard::JOB_BOARD
+    end
+
+    def counter_key
+      COUNTER_KEY
     end
 
     def enqueue_without_headers(message)
@@ -18,7 +23,7 @@ module Switchboard
       #is added to the job_queue. This is not a big deal bc it just means that
       #the sender's queue will be processed one slot behind it's rightful place.
       #This does not effect message ordering.
-      @count = @redis.incr(@counter_key)
+      @count = @redis.incr(COUNTER_KEY)
       @redis.multi do
         @redis.zadd(Switchboard::JOB_BOARD, @count, sender)
         @redis.rpush(sender, Oj.dump(message))

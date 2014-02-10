@@ -2,7 +2,7 @@ require_relative '../spec_helper'
 require 'benchmark'
 
 REDIS_CONNECTION_POOL_SIZE = 100
-ITERATIONS = 10_000
+ITERATIONS = 10
 SUBSCRIBER_POOL_SIZE = 100
 
 message = ["hello", 'operator']
@@ -19,36 +19,38 @@ Benchmark.bmbm do |x|
       sender = 'sender_' + iteration.to_s
       operator = Switchboard.operator(namespace, sender)
       operator.enqueue(message)
-    end
-  end
-end
-
-Benchmark.bmbm do |x|
-  x.report "Time for #{ITERATIONS} subscribers to read #{ITERATIONS * 2} messages" do
-    ITERATIONS.times do |iteration|
-      sender = 'sender_' + iteration.to_s
       subscriber = Switchboard.subscriber(namespace)
-      subscriber.messages!
+      p "messages: #{subscriber.messages!}"
     end
   end
 end
 
-Switchboard.pooled_redis_client.flushdb
+# Benchmark.bmbm do |x|
+#   x.report "Time for #{ITERATIONS} subscribers to read #{ITERATIONS * 2} messages" do
+#     ITERATIONS.times do |iteration|
+#       sender = 'sender_' + iteration.to_s
+#       subscriber = Switchboard.subscriber(namespace)
+#       p subscriber.messages!
+#     end
+#   end
+# end
 
-Benchmark.bmbm do |x|
+# Switchboard.pooled_redis_client.flushdb
 
-  x.report "Time for #{SUBSCRIBER_POOL_SIZE} subscribers to read #{ITERATIONS * message.length} messages" do
-      ITERATIONS.times do |iteration|
-        p -> do
-          sender = 'sender_' + iteration.to_s
-          operator = Switchboard.operator(namespace, sender)
-          operator.enqueue(message)
-        end
-      subscriber = Switchboard.subscriber(namespace)
-      subscriber.wait_for_messages(p) {|m| m}
-    end
-  end
-end
+# Benchmark.bmbm do |x|
+
+#   x.report "Time for #{SUBSCRIBER_POOL_SIZE} subscribers to read #{ITERATIONS * message.length} messages" do
+#       ITERATIONS.times do |iteration|
+#         p = -> do
+#           sender = 'sender_' + iteration.to_s
+#           operator = Switchboard.operator(namespace, sender)
+#           operator.enqueue(message)
+#         end
+#       subscriber = Switchboard.subscriber(namespace)
+#       subscriber.wait_for_messages(p) {|m| m}
+#     end
+#   end
+# end
 
 
-Switchboard.pooled_redis_client.flushdb
+# Switchboard.pooled_redis_client.flushdb
