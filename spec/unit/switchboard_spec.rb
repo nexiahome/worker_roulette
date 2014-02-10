@@ -164,8 +164,16 @@ describe Switchboard do
         Switchboard.pooled_redis_client.info["connected_clients"].to_i.should == (pool_size + connections_outside_of_pool)
       end
 
-      it "should be fork() proof"
-      it "should reconnect if it looses its connection"
+
+      #This may be fixed soon (10 Feb 2014 - https://github.com/redis/redis-rb/pull/389 and https://github.com/redis/redis-rb/issues/364)
+      it "should not be fork() proof -- forking reconnects need to be handled in the calling code (until redis gem is udpated, then we should be fork-proof)" do
+        Switchboard.start(1)
+        Switchboard.pooled_redis_subscriber.get("foo")
+        expect do
+          fork { Switchboard.pooled_redis_subscriber.get("foo"); Kernel.exit!}
+        end.to raise(Redis::InheritedError)
+      end
+
       it "should use optionally non-blocking I/O"
       it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
       it "should work in sidekiq"
