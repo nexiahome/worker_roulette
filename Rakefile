@@ -17,3 +17,9 @@ task :'spec:ci' do
   rspec_out_file = nil
   sh "bundle exec rspec #{rspec_out_file} spec"
 end
+
+desc "Run perf tests"
+task :'spec:perf' do
+  rspec_out_file = nil
+  sh "bundle exec ruby ./spec/benchmark/perf_test.rb"
+end
