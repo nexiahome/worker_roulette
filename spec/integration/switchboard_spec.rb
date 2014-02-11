@@ -9,19 +9,21 @@ describe Switchboard do
   let(:operator_message) {Hash[payload: "operator"]}
   let(:messages_with_headers) {default_headers.merge({payload: messages})}
   let(:jsonized_messages_with_headers) {[Oj.dump(messages_with_headers)]}
-  let(:raw_redis_client) {Redis.new}
-  let(:raw_redis_subscriber) {Redis.new}
-  let(:redis) {Redis::Namespace.new(namespace, redis: raw_redis_client)}
-  let(:redis_subscriber) {Redis::Namespace.new(namespace, redis: raw_redis_subscriber)}
 
-  before {redis.flushdb}
+  let(:redis) {Redis.new}
+  let(:pool_size) {10}
+
+  before do
+    Switchboard.start(pool_size)
+    Redis.new.flushdb
+  end
 
   it "should exist" do
     Switchboard.should_not be_nil
   end
 
   context Operator do
-    let(:subject) {Operator.new(namespace, sender, raw_redis_client)}
+    let(:subject) {Switchboard.operator(namespace, sender)}
 
     it "should be working on behalf of a sender" do
       subject.sender.should == sender
@@ -32,7 +34,7 @@ describe Switchboard do
     end
 
     it "should be injected with a raw_redis_client so it can do is work" do
-      raw_redis_client.should_receive(:rpush)
+      Redis.any_instance.should_receive(:rpush)
       subject.enqueue(:whatever)
     end
 
@@ -66,7 +68,7 @@ describe Switchboard do
     end
 
     it "should post the sender_id and messages transactionally" do
-      raw_redis_client.should_receive(:multi)
+      Redis.any_instance.should_receive(:multi)
       subject.enqueue(messages.first)
     end
 
@@ -78,8 +80,9 @@ describe Switchboard do
       redis.get(subject.counter_key).should == "2"
     end
 
-    it "should publish a notification that a new job is ready" do
+    xit "should publish a notification that a new job is ready" do
       result = nil
+      redis_subscriber = Redis.new
       redis_subscriber.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
         on.subscribe do |channel, subscription|
           subject.enqueue(messages)
@@ -96,8 +99,8 @@ describe Switchboard do
   end
 
   context Subscriber do
-    let(:operator) {Operator.new(namespace, sender, raw_redis_client)}
-    let(:subject)  {Subscriber.new(namespace, raw_redis_client, raw_redis_subscriber)}
+    let(:operator) {Switchboard.operator(namespace, sender)}
+    let(:subject)  {Switchboard.subscriber(namespace)}
 
     before do
       operator.enqueue(messages)
@@ -112,8 +115,8 @@ describe Switchboard do
       subject.namespace.should == namespace
     end
 
-    it "should be injected with a raw_redis_client so it can do its work" do
-      raw_redis_client.should_receive(:lrange).and_call_original
+    it "should be injected with a redis client so it can do its work" do
+      Redis.any_instance.should_receive(:lrange).and_call_original
       subject.messages!
     end
 
@@ -133,7 +136,7 @@ describe Switchboard do
     it "should take the oldest sender off the job board (FIFO)" do
       oldest_sender = sender.to_s
       most_recent_sender = 'most_recent_sender'
-      most_recent_operator = Operator.new(namespace, most_recent_sender, raw_redis_client)
+      most_recent_operator = Switchboard.operator(namespace, most_recent_sender)
       most_recent_operator.enqueue(messages)
       redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
       subject.messages!
@@ -141,7 +144,7 @@ describe Switchboard do
     end
 
     it "should get the sender and message list transactionally" do
-      raw_redis_client.should_receive(:multi).and_call_original
+      Redis.any_instance.should_receive(:multi).and_call_original
       subject.messages!
     end
 
@@ -163,19 +166,20 @@ describe Switchboard do
 
     context "Concurrent Access" do
       it "should pool its connections" do
-        connections_outside_of_pool = 3
-        pool_size = 10
-        Switchboard.start(pool_size)
-        Array.new(100) {Thread.new {Switchboard.subscriber_connection_pool.get("foo")}}.each(&:join)
-        Switchboard.subscriber_connection_pool.info["connected_clients"].to_i.should == (pool_size + connections_outside_of_pool)
+        Array.new(100) do
+          Thread.new {Switchboard.subscriber_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}
+        end.each(&:join)
+        Switchboard.subscriber_connection_pool.with do |pooled_redis|
+          pooled_redis.info["connected_clients"].to_i.should > (pool_size)
+        end
       end
 
       #This may be fixed soon (10 Feb 2014 - https://github.com/redis/redis-rb/pull/389 and https://github.com/redis/redis-rb/issues/364)
       it "should not be fork() proof -- forking reconnects need to be handled in the calling code (until redis gem is udpated, then we should be fork-proof)" do
         Switchboard.start(1)
-        Switchboard.subscriber_connection_pool.get("foo")
+        Switchboard.subscriber_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}
         fork do
-          expect {Switchboard.subscriber_connection_pool.get("foo")}.to raise_error(Redis::InheritedError)
+          expect {Switchboard.subscriber_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}.to raise_error(Redis::InheritedError)
         end
       end
 

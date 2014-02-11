@@ -3,10 +3,10 @@ module Switchboard
     attr_reader :namespace, :sender
     COUNTER_KEY = 'counter_key'
 
-    def initialize(namespace, sender, redis_client)
-      @namespace = namespace.to_s
+    def initialize(namespace, sender, redis_pool)
+      @namespace = namespace
       @sender = sender
-      @redis = Redis::Namespace.new(namespace, redis: redis_client)
+      @redis_pool = redis_pool
     end
 
     def job_board_key
@@ -23,11 +23,13 @@ module Switchboard
       #is added to the job_queue. This is not a big deal bc it just means that
       #the sender's queue will be processed one slot behind it's rightful place.
       #This does not effect message ordering.
-      @count = @redis.incr(COUNTER_KEY)
-      @redis.multi do
-        @redis.zadd(Switchboard::JOB_BOARD, @count, sender)
-        @redis.rpush(sender, Oj.dump(message))
-        @redis.publish(Switchboard::JOB_NOTIFICATIONS, Switchboard::JOB_NOTIFICATIONS)
+      @redis_pool.with do |redis|
+        @count = redis.incr(COUNTER_KEY)
+        redis.multi do
+          redis.zadd(Switchboard::JOB_BOARD, @count, sender)
+          redis.rpush(sender, Oj.dump(message))
+          redis.publish(Switchboard::JOB_NOTIFICATIONS, Switchboard::JOB_NOTIFICATIONS)
+        end
       end
     end
 
