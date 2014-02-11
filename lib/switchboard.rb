@@ -12,10 +12,10 @@ module Switchboard
   JOB_BOARD = "job_board"
   JOB_NOTIFICATIONS = "new_job_ready"
 
-  def self.start(pool_size, config = {host: 'localhost'})
-    @operator_connection_pool    = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: 5]) {Redis.new}
-    @subscriber_connection_pool  = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: 5]) {Redis.new}
-    @pubsub_connection_pool      = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: 5]) {Redis.new}
+  def self.start(pool_size = 10, config = {host: 'localhost', db: 'switchboard', timeout: 5})
+    @operator_connection_pool    = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: config[:timeout]) {Redis.new}
+    @subscriber_connection_pool  = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: config[:timeout]]) {Redis.new}
+    @pubsub_connection_pool      = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: config[:timeout]]) {Redis.new}
   end
 
   def self.operator(namespace, sender)
