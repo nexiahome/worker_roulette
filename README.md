@@ -1,6 +1,42 @@
 # Switchboard
 
-TODO: Write a gem description
+    Switchboard is designed to allow large numbers of unique devices, processes, users, or whatever communicate over individual channels without messing up the order of their messages. Switchboard was created to solve two otherwise hard problems. First, other messaging solutions (I'm looking at you RabbitMQ) are not designed to  handle very large numbers of queues (30,000+); because Switchboard is built on top of Redis, we have successfully tested it running with millions of queues. Second, other messaging systems assume one (or more) of three things: 1. Your message consumers know the routing key of messages they are interested in processing; 2. Your messages can wait so that only one consumer is processed at a time; 3. You love to complicated write code to put your messages back in order. Sometimes, none of these things is true and that is where Switchboard comes in.
+
+    Switchboard lets you have thousands of competing consumers (distrubted over as many machines as you'd like) processing ordered messages from millions of totally unknown message providers. It does all this and ensures that the messages sent from each message provider are processed in exactly the order it sent them.
+
+## Usage
+    size_of_connection_pool = 100
+    redis_config = {host: 'localhost', timeout: 5, db: 1}
+
+    Switchboard.start(size_of_connection_pool, redis_config)
+
+    sender_id = :shady
+    operator = Switchboard.operator(sender_id)
+    operator.enqueue(['hello', 'operator'])
+
+    subscriber = Switchboard.subscriber
+    messages = subscriber.messages! #drain the queue of the next available sender
+    messages.first # => ['hello', 'operator']
+
+    other_sender_id = :the_real_slim_shady
+    other_operator = Switchboard.operator(other_sender_id)
+    other_operator.enqueue({'can you get me' => 'the number nine?'})
+
+    messages = subscriber.messages! #drain the queue of the next available sender
+    messages.first # => {'can you get me' => 'the number nine?'}
+
+    on_subscribe_callback = -> do
+      puts "Huzzah! We're listening!"
+      operator.enqueue('will I see you later?')
+      operator.enqueue('can you give me back my dime?')
+    end
+
+    subscriber.wait_for_messages(on_subscribe_callback) do |messages| #drain the queue of the next available sender
+      messages # => ['will I see you later', 'can you give me back my dime?']
+    end
+
+##Caveat Emptor
+    While Switchboard does promise to keep the messages of each consumer processed in order by competing consumers, it does NOT guarantee the order in which the queues themselves will be processed. In general, work is processed in a FIFO order, but for performance reasons this has been left a loose FIFO. For example, if Abdul enqueues some ordered messages ('1', '2', and '3') and then so do Mark and Wanda, Mark's messages may be processed first, then it would likely be Abdul's, and then Wanda's. However, even though Mark jumped the line, Abdul's messages will still be processed the order he enqueued them ('1', '2', then '3').
 
 ## Installation
 
@@ -16,9 +52,14 @@ Or install it yourself as:
 
     $ gem install switchboard
 
-## Usage
+## Run the specs
 
-TODO: Write usage instructions here
+    $ bundle exec rake spec:ci
+
+## Run the performance tests
+
+    $ bundle exec rake spec:perf
+
 
 ## Contributing
 
