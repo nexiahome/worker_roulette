@@ -2,7 +2,6 @@ require "switchboard/version"
 require 'redis'
 require 'hiredis'
 require 'redis/connection/hiredis'
-require 'redis-namespace'
 require 'connection_pool'
 require 'oj'
 
@@ -12,7 +11,8 @@ module Switchboard
   JOB_BOARD = "job_board"
   JOB_NOTIFICATIONS = "new_job_ready"
 
-  def self.start(pool_size = 10, config = {host: 'localhost', db: 'switchboard', timeout: 5})
+  def self.start(pool_size = 10, config = {})
+    config = {host: 'localhost', db: 'switchboard', timeout: 5}.merge(config)
     @operator_connection_pool    = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: config[:timeout]]) {Redis.new}
     @subscriber_connection_pool  = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: config[:timeout]]) {Redis.new}
     @pubsub_connection_pool      = ConnectionPool.new(config.merge Hash[size: pool_size, timeout: config[:timeout]]) {Redis.new}

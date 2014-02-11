@@ -17,8 +17,8 @@ module Switchboard
     end
 
     def enqueue_without_headers(message)
-      #Caveat Emptor: There is a race condition here, but it not serious
-      #the count may be incremented again by anothe process before the sender
+      #Caveat Emptor: There is a race condition here, but it not serious;
+      #the count may be incremented again by another process before the sender
       #is added to the job_queue. This is not a big deal bc it just means that
       #the sender's queue will be processed one slot behind it's rightful place.
       #This does not effect message ordering.

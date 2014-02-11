@@ -14,7 +14,7 @@ module Switchboard
       @pubsub_pool.with do |redis|
         redis.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
           on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
-          on.message { redis.unsubscribe; block.call(messages!) if block }
+          on.message   {redis.unsubscribe; block.call(messages!) if block}
         end
       end
     end
