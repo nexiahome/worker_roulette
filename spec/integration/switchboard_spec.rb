@@ -2,7 +2,6 @@ require "spec_helper"
 
 describe Switchboard do
   let(:sender) {'katie_80'}
-  let(:namespace) {'sixties_telephony'}
   let(:messages) {["hello", "operator"]}
   let(:default_headers) {Hash[headers: {sender: sender}]}
   let(:hello_message) {Hash[payload: "hello"]}
@@ -23,14 +22,10 @@ describe Switchboard do
   end
 
   context Operator do
-    let(:subject) {Switchboard.operator(namespace, sender)}
+    let(:subject) {Switchboard.operator(sender)}
 
     it "should be working on behalf of a sender" do
       subject.sender.should == sender
-    end
-
-    it "should be scoped to a namespace" do
-      subject.namespace.should == namespace
     end
 
     it "should be injected with a raw_redis_client so it can do is work" do
@@ -80,7 +75,7 @@ describe Switchboard do
       redis.get(subject.counter_key).should == "2"
     end
 
-    xit "should publish a notification that a new job is ready" do
+    it "should publish a notification that a new job is ready" do
       result = nil
       redis_subscriber = Redis.new
       redis_subscriber.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
@@ -99,8 +94,8 @@ describe Switchboard do
   end
 
   context Subscriber do
-    let(:operator) {Switchboard.operator(namespace, sender)}
-    let(:subject)  {Switchboard.subscriber(namespace)}
+    let(:operator) {Switchboard.operator(sender)}
+    let(:subject)  {Switchboard.subscriber}
 
     before do
       operator.enqueue(messages)
@@ -109,10 +104,6 @@ describe Switchboard do
     it "should be working on behalf of a sender" do
       subject.messages!
       subject.sender.should == sender
-    end
-
-    it "should be scoped to a namespace" do
-      subject.namespace.should == namespace
     end
 
     it "should be injected with a redis client so it can do its work" do
@@ -136,7 +127,7 @@ describe Switchboard do
     it "should take the oldest sender off the job board (FIFO)" do
       oldest_sender = sender.to_s
       most_recent_sender = 'most_recent_sender'
-      most_recent_operator = Switchboard.operator(namespace, most_recent_sender)
+      most_recent_operator = Switchboard.operator(most_recent_sender)
       most_recent_operator.enqueue(messages)
       redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
       subject.messages!

@@ -1,10 +1,9 @@
 module Switchboard
   class Operator
-    attr_reader :namespace, :sender
+    attr_reader :sender
     COUNTER_KEY = 'counter_key'
 
-    def initialize(namespace, sender, redis_pool)
-      @namespace = namespace
+    def initialize(sender, redis_pool)
       @sender = sender
       @redis_pool = redis_pool
     end

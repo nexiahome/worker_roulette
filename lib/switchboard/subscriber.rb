@@ -1,10 +1,9 @@
 module Switchboard
   class Subscriber
-    attr_reader :namespace, :sender
-    def initialize(namespace, client_pool, pubsub_pool)
-      @namespace = namespace
-      @client_pool = client_pool#Redis::Namespace.new(namespace.to_sym, redis: redis_client)
-      @pubsub_pool = pubsub_pool#Redis::Namespace.new(namespace.to_sym, redis: redis_subscriber)
+    attr_reader :sender
+    def initialize(client_pool, pubsub_pool)
+      @client_pool = client_pool
+      @pubsub_pool = pubsub_pool
     end
 
     def job_board_key
