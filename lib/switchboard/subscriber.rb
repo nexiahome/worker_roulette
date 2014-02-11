@@ -2,7 +2,7 @@ module Switchboard
   class Subscriber
     attr_reader :namespace, :sender
     def initialize(namespace, redis_client, redis_subscriber)
-      @namespace = namespace.to_sym
+      @namespace = namespace.to_s
       @redis = Redis::Namespace.new(namespace, redis: redis_client)
       @redis_subscriber = Redis::Namespace.new(namespace, redis: redis_subscriber)
     end
@@ -19,7 +19,7 @@ module Switchboard
     end
 
     def messages!
-      setup
+      get_sender_for_next_job
       results = @redis.multi do
         @redis.lrange(sender, 0, -1)
         @redis.del(sender)
@@ -29,8 +29,8 @@ module Switchboard
     end
 
   private
-    def setup
-      @sender = (@redis.zrange(Switchboard::JOB_BOARD, 0, 0) || []).first.to_s.to_sym
+    def get_sender_for_next_job
+      @sender = (@redis.zrange(Switchboard::JOB_BOARD, 0, 0) || []).first.to_s
     end
   end
 end

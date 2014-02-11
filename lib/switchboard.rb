@@ -13,25 +13,22 @@ module Switchboard
   JOB_NOTIFICATIONS = "new_job_ready"
 
   def self.start(pool_size, config = {host: 'localhost'})
-    @@pooled_redis_clients     = Redis::Pool.new(config.merge Hash[size: pool_size])
-    @@pooled_redis_subscribers = Redis::Pool.new(config.merge Hash[size: pool_size])
+    @operator_connection_pool    = Redis::Pool.new(config.merge Hash[size: pool_size])
+    @subscriber_connection_pool  = Redis::Pool.new(config.merge Hash[size: pool_size])
+    @pubsub_connection_pool      = Redis::Pool.new(config.merge Hash[size: pool_size])
   end
 
   def self.operator(namespace, sender)
-    raise "Switchboard not Started" unless pooled_redis_client
-    Operator.new(namespace, sender, pooled_redis_client)
+    raise "Switchboard not Started" unless @operator_connection_pool
+    Operator.new(namespace, sender, @operator_connection_pool)
   end
 
   def self.subscriber(namespace)
-    raise "Switchboard not Started" unless pooled_redis_client
-    Subscriber.new(namespace, pooled_redis_client, pooled_redis_subscriber)
+    raise "Switchboard not Started" unless @subscriber_connection_pool
+    Subscriber.new(namespace, @subscriber_connection_pool, @pubsub_connection_pool)
   end
 
-  def self.pooled_redis_client
-    @@pooled_redis_clients
-  end
-
-  def self.pooled_redis_subscriber
-    @@pooled_redis_subscribers
+  def self.subscriber_connection_pool
+    @subscriber_connection_pool
   end
 end

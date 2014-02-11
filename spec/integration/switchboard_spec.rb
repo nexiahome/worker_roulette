@@ -1,8 +1,8 @@
 require "spec_helper"
 
 describe Switchboard do
-  let(:sender) {:katie_80}
-  let(:namespace) {:sixties_telephony}
+  let(:sender) {'katie_80'}
+  let(:namespace) {'sixties_telephony'}
   let(:messages) {["hello", "operator"]}
   let(:default_headers) {Hash[headers: {sender: sender}]}
   let(:hello_message) {Hash[payload: "hello"]}
@@ -163,19 +163,19 @@ describe Switchboard do
 
     context "Concurrent Access" do
       it "should pool its connections" do
-        connections_outside_of_pool = 4
+        connections_outside_of_pool = 3
         pool_size = 10
         Switchboard.start(pool_size)
-        Array.new(100) {Thread.new {Switchboard.pooled_redis_subscriber.get("foo")}}.each(&:join)
-        Switchboard.pooled_redis_client.info["connected_clients"].to_i.should == (pool_size + connections_outside_of_pool)
+        Array.new(100) {Thread.new {Switchboard.subscriber_connection_pool.get("foo")}}.each(&:join)
+        Switchboard.subscriber_connection_pool.info["connected_clients"].to_i.should == (pool_size + connections_outside_of_pool)
       end
 
       #This may be fixed soon (10 Feb 2014 - https://github.com/redis/redis-rb/pull/389 and https://github.com/redis/redis-rb/issues/364)
       it "should not be fork() proof -- forking reconnects need to be handled in the calling code (until redis gem is udpated, then we should be fork-proof)" do
         Switchboard.start(1)
-        Switchboard.pooled_redis_subscriber.get("foo")
+        Switchboard.subscriber_connection_pool.get("foo")
         fork do
-          expect {Switchboard.pooled_redis_subscriber.get("foo")}.to raise_error(Redis::InheritedError)
+          expect {Switchboard.subscriber_connection_pool.get("foo")}.to raise_error(Redis::InheritedError)
         end
       end
 

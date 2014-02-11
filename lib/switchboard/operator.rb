@@ -4,7 +4,7 @@ module Switchboard
     COUNTER_KEY = 'counter_key'
 
     def initialize(namespace, sender, redis_client)
-      @namespace = namespace.to_sym
+      @namespace = namespace.to_s
       @sender = sender
       @redis = Redis::Namespace.new(namespace, redis: redis_client)
     end
