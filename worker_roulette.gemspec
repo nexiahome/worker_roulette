@@ -1,11 +1,11 @@
 # encoding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'switchboard/version'
+require 'worker_roulette/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "switchboard"
-  spec.version       = Switchboard::VERSION
+  spec.name          = "worker_roulette"
+  spec.version       = WorkerRoulette::VERSION
   spec.authors       = ["Paul Saieg"]
   spec.email         = ["classicist@gmail.com"]
   spec.description   = %q{Write a gem description}
@@ -21,6 +21,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'oj'
   spec.add_dependency 'hiredis', '~> 0.4.5'
   spec.add_dependency 'em-synchrony'
+  spec.add_dependency 'connection_pool'
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"

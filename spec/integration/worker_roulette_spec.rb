@@ -1,11 +1,11 @@
 require "spec_helper"
 
-describe Switchboard do
+describe WorkerRoulette do
   let(:sender) {'katie_80'}
-  let(:messages) {["hello", "operator"]}
+  let(:messages) {["hello", "foreman"]}
   let(:default_headers) {Hash[headers: {sender: sender}]}
   let(:hello_message) {Hash[payload: "hello"]}
-  let(:operator_message) {Hash[payload: "operator"]}
+  let(:foreman_message) {Hash[payload: "foreman"]}
   let(:messages_with_headers) {default_headers.merge({payload: messages})}
   let(:jsonized_messages_with_headers) {[Oj.dump(messages_with_headers)]}
 
@@ -13,16 +13,16 @@ describe Switchboard do
   let(:pool_size) {10}
 
   before do
-    Switchboard.start(pool_size)
+    WorkerRoulette.start(pool_size)
     Redis.new.flushdb
   end
 
   it "should exist" do
-    Switchboard.should_not be_nil
+    WorkerRoulette.should_not be_nil
   end
 
-  context Operator do
-    let(:subject) {Switchboard.operator(sender)}
+  context Foreman do
+    let(:subject) {WorkerRoulette.foreman(sender)}
 
     it "should be working on behalf of a sender" do
       subject.sender.should == sender
@@ -77,28 +77,28 @@ describe Switchboard do
 
     it "should publish a notification that a new job is ready" do
       result = nil
-      redis_subscriber = Redis.new
-      redis_subscriber.subscribe(Switchboard::JOB_NOTIFICATIONS) do |on|
+      redis_tradesman = Redis.new
+      redis_tradesman.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |on|
         on.subscribe do |channel, subscription|
           subject.enqueue(messages)
         end
 
         on.message do |channel, notification|
           result = notification
-          redis_subscriber.unsubscribe(Switchboard::JOB_NOTIFICATIONS)
+          redis_tradesman.unsubscribe(WorkerRoulette::JOB_NOTIFICATIONS)
         end
      end
 
-      result.should == Switchboard::JOB_NOTIFICATIONS
+      result.should == WorkerRoulette::JOB_NOTIFICATIONS
     end
   end
 
-  context Subscriber do
-    let(:operator) {Switchboard.operator(sender)}
-    let(:subject)  {Switchboard.subscriber}
+  context Tradesman do
+    let(:foreman) {WorkerRoulette.foreman(sender)}
+    let(:subject)  {WorkerRoulette.tradesman}
 
     before do
-      operator.enqueue(messages)
+      foreman.enqueue(messages)
     end
 
     it "should be working on behalf of a sender" do
@@ -118,7 +118,7 @@ describe Switchboard do
     end
 
     it "should drain all the messages from the sender's slot in the switchboard" do
-      operator.enqueue(messages)
+      foreman.enqueue(messages)
       subject.messages!.should == [messages_with_headers, messages_with_headers]
       subject.messages!.should == []
       subject.messages!.should == [] #does not throw an error if queue is alreay empty
@@ -127,8 +127,8 @@ describe Switchboard do
     it "should take the oldest sender off the job board (FIFO)" do
       oldest_sender = sender.to_s
       most_recent_sender = 'most_recent_sender'
-      most_recent_operator = Switchboard.operator(most_recent_sender)
-      most_recent_operator.enqueue(messages)
+      most_recent_foreman = WorkerRoulette.foreman(most_recent_sender)
+      most_recent_foreman.enqueue(messages)
       redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
       subject.messages!
       redis.zrange(subject.job_board_key, 0, -1).should == [most_recent_sender]
@@ -142,7 +142,7 @@ describe Switchboard do
     it "should get the messages from the next sender's slot when a new job is ready" do
       subject.messages!
       subject.should_receive(:messages!).and_call_original
-      publisher = -> {operator.enqueue(messages)}
+      publisher = -> {foreman.enqueue(messages)}
       subject.wait_for_messages(publisher) do |redis_messages|
         redis_messages.should == [messages_with_headers]
       end
@@ -158,24 +158,24 @@ describe Switchboard do
     context "Concurrent Access" do
       it "should pool its connections" do
         Array.new(100) do
-          Thread.new {Switchboard.subscriber_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}
+          Thread.new {WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}
         end.each(&:join)
-        Switchboard.subscriber_connection_pool.with do |pooled_redis|
+        WorkerRoulette.tradesman_connection_pool.with do |pooled_redis|
           pooled_redis.info["connected_clients"].to_i.should > (pool_size)
         end
       end
 
       #This may be fixed soon (10 Feb 2014 - https://github.com/redis/redis-rb/pull/389 and https://github.com/redis/redis-rb/issues/364)
       it "should not be fork() proof -- forking reconnects need to be handled in the calling code (until redis gem is udpated, then we should be fork-proof)" do
-        Switchboard.start(1)
-        Switchboard.subscriber_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}
+        WorkerRoulette.start(1)
+        WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}
         fork do
-          expect {Switchboard.subscriber_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}.to raise_error(Redis::InheritedError)
+          expect {WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}.to raise_error(Redis::InheritedError)
         end
       end
 
       it "should use optionally non-blocking I/O" do
-        expect {Switchboard.start(1, :driver => :synchrony)}.not_to raise_error
+        expect {WorkerRoulette.start(1, :driver => :synchrony)}.not_to raise_error
       end
     end
   end

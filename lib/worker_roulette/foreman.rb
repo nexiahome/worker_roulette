@@ -1,5 +1,5 @@
-module Switchboard
-  class Operator
+module WorkerRoulette
+  class Foreman
     attr_reader :sender
     COUNTER_KEY = 'counter_key'
 
@@ -9,7 +9,7 @@ module Switchboard
     end
 
     def job_board_key
-      Switchboard::JOB_BOARD
+      WorkerRoulette::JOB_BOARD
     end
 
     def counter_key
@@ -25,9 +25,9 @@ module Switchboard
       @redis_pool.with do |redis|
         @count = redis.incr(COUNTER_KEY)
         redis.multi do
-          redis.zadd(Switchboard::JOB_BOARD, @count, sender)
+          redis.zadd(WorkerRoulette::JOB_BOARD, @count, sender)
           redis.rpush(sender, Oj.dump(message))
-          redis.publish(Switchboard::JOB_NOTIFICATIONS, Switchboard::JOB_NOTIFICATIONS)
+          redis.publish(WorkerRoulette::JOB_NOTIFICATIONS, WorkerRoulette::JOB_NOTIFICATIONS)
         end
       end
     end

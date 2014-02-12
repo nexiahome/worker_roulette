@@ -1,4 +1,4 @@
-require 'switchboard'
+require 'worker_roulette'
 # require 'simplecov'
 # require 'simplecov-rcov'
 # class SimpleCov::Formatter::MergedFormatter
@@ -10,8 +10,8 @@ require 'switchboard'
 # SimpleCov.formatter = SimpleCov::Formatter::MergedFormatter
 # SimpleCov.start
 
-require File.expand_path(File.join("..", "..", "lib", "switchboard.rb"), __FILE__)
-include Switchboard
+require File.expand_path(File.join("..", "..", "lib", "worker_roulette.rb"), __FILE__)
+include WorkerRoulette
 
 Dir[File.join(File.dirname(__FILE__), 'helpers', '**/*.rb')].sort.each { |file| require file.gsub(".rb", "")}
 

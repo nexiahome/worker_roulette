@@ -1,3 +1,3 @@
-module Switchboard
+module WorkerRoulette
   VERSION = "0.0.2"
 end
