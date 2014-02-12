@@ -2,12 +2,12 @@ require "spec_helper"
 
 describe WorkerRoulette do
   let(:sender) {'katie_80'}
-  let(:messages) {["hello", "foreman"]}
+  let(:work_orders) {["hello", "foreman"]}
   let(:default_headers) {Hash[headers: {sender: sender}]}
-  let(:hello_message) {Hash[payload: "hello"]}
-  let(:foreman_message) {Hash[payload: "foreman"]}
-  let(:messages_with_headers) {default_headers.merge({payload: messages})}
-  let(:jsonized_messages_with_headers) {[Oj.dump(messages_with_headers)]}
+  let(:hello_work_order) {Hash[payload: "hello"]}
+  let(:foreman_work_order) {Hash[payload: "foreman"]}
+  let(:work_orders_with_headers) {default_headers.merge({payload: work_orders})}
+  let(:jsonized_work_orders_with_headers) {[Oj.dump(work_orders_with_headers)]}
 
   let(:redis) {Redis.new}
   let(:pool_size) {10}
@@ -30,48 +30,48 @@ describe WorkerRoulette do
 
     it "should be injected with a raw_redis_client so it can do is work" do
       Redis.any_instance.should_receive(:rpush)
-      subject.enqueue(:whatever)
+      subject.enqueue_work_order(:whatever)
     end
 
-    it "should enqueue two messages in the sender's slot in the switchboard" do
-      subject.enqueue(messages.first)
-      subject.enqueue(messages.last)
-      redis.lrange(sender, 0, -1).should == messages.map {|m| Oj.dump(default_headers.merge({payload: m})) }
+    it "should enqueue_work_order two work_orders in the sender's slot in the switchboard" do
+      subject.enqueue_work_order(work_orders.first)
+      subject.enqueue_work_order(work_orders.last)
+      redis.lrange(sender, 0, -1).should == work_orders.map {|m| Oj.dump(default_headers.merge({payload: m})) }
     end
 
-    it "should enqueue an array of messages without headers in the sender's slot in the switchboard" do
-      subject.enqueue_without_headers(messages)
-      redis.lrange(sender, 0, -1).should == [Oj.dump(messages)]
+    it "should enqueue_work_order an array of work_orders without headers in the sender's slot in the switchboard" do
+      subject.enqueue_work_order_without_headers(work_orders)
+      redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders)]
     end
 
-    it "should enqueue an array of messages with default headers in the sender's slot in the switchboard" do
-      subject.enqueue(messages)
-      redis.lrange(sender, 0, -1).should == jsonized_messages_with_headers
+    it "should enqueue_work_order an array of work_orders with default headers in the sender's slot in the switchboard" do
+      subject.enqueue_work_order(work_orders)
+      redis.lrange(sender, 0, -1).should == jsonized_work_orders_with_headers
     end
 
-    it "should enqueue an array of messages with additional headers in the sender's slot in the switchboard" do
+    it "should enqueue_work_order an array of work_orders with additional headers in the sender's slot in the switchboard" do
       extra_headers = {foo: :bars}
-      subject.enqueue(messages, extra_headers)
-      messages_with_headers[:headers].merge!(extra_headers)
-      redis.lrange(sender, 0, -1).should == [Oj.dump(messages_with_headers)]
+      subject.enqueue_work_order(work_orders, extra_headers)
+      work_orders_with_headers[:headers].merge!(extra_headers)
+      redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders_with_headers)]
     end
 
     it "should post the sender's id to the job board with an order number" do
-      subject.enqueue(messages.first)
-      subject.enqueue(messages.last)
-      redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [[sender.to_s, messages.length.to_f]]
+      subject.enqueue_work_order(work_orders.first)
+      subject.enqueue_work_order(work_orders.last)
+      redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [[sender.to_s, work_orders.length.to_f]]
     end
 
-    it "should post the sender_id and messages transactionally" do
+    it "should post the sender_id and work_orders transactionally" do
       Redis.any_instance.should_receive(:multi)
-      subject.enqueue(messages.first)
+      subject.enqueue_work_order(work_orders.first)
     end
 
     it "should generate sequential order numbers" do
       redis.get(subject.counter_key).should == nil
-      subject.enqueue(messages.first)
+      subject.enqueue_work_order(work_orders.first)
       redis.get(subject.counter_key).should == "1"
-      subject.enqueue(messages.last)
+      subject.enqueue_work_order(work_orders.last)
       redis.get(subject.counter_key).should == "2"
     end
 
@@ -80,7 +80,7 @@ describe WorkerRoulette do
       redis_tradesman = Redis.new
       redis_tradesman.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |on|
         on.subscribe do |channel, subscription|
-          subject.enqueue(messages)
+          subject.enqueue_work_order(work_orders)
         end
 
         on.message do |channel, notification|
@@ -98,53 +98,53 @@ describe WorkerRoulette do
     let(:subject)  {WorkerRoulette.tradesman}
 
     before do
-      foreman.enqueue(messages)
+      foreman.enqueue_work_order(work_orders)
     end
 
     it "should be working on behalf of a sender" do
-      subject.messages!
+      subject.work_orders!
       subject.sender.should == sender
     end
 
     it "should be injected with a redis client so it can do its work" do
       Redis.any_instance.should_receive(:lrange).and_call_original
-      subject.messages!
+      subject.work_orders!
     end
 
-    it "should drain one set of messages from the sender's slot in the switchboard" do
-      subject.messages!.should == [messages_with_headers]
-      subject.messages!.should == []
-      subject.messages!.should == [] #does not throw an error if queue is alreay empty
+    it "should drain one set of work_orders from the sender's slot in the switchboard" do
+      subject.work_orders!.should == [work_orders_with_headers]
+      subject.work_orders!.should == []
+      subject.work_orders!.should == [] #does not throw an error if queue is alreay empty
     end
 
-    it "should drain all the messages from the sender's slot in the switchboard" do
-      foreman.enqueue(messages)
-      subject.messages!.should == [messages_with_headers, messages_with_headers]
-      subject.messages!.should == []
-      subject.messages!.should == [] #does not throw an error if queue is alreay empty
+    it "should drain all the work_orders from the sender's slot in the switchboard" do
+      foreman.enqueue_work_order(work_orders)
+      subject.work_orders!.should == [work_orders_with_headers, work_orders_with_headers]
+      subject.work_orders!.should == []
+      subject.work_orders!.should == [] #does not throw an error if queue is alreay empty
     end
 
     it "should take the oldest sender off the job board (FIFO)" do
       oldest_sender = sender.to_s
       most_recent_sender = 'most_recent_sender'
       most_recent_foreman = WorkerRoulette.foreman(most_recent_sender)
-      most_recent_foreman.enqueue(messages)
+      most_recent_foreman.enqueue_work_order(work_orders)
       redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
-      subject.messages!
+      subject.work_orders!
       redis.zrange(subject.job_board_key, 0, -1).should == [most_recent_sender]
     end
 
-    it "should get the sender and message list transactionally" do
+    it "should get the sender and work_order list transactionally" do
       Redis.any_instance.should_receive(:multi).and_call_original
-      subject.messages!
+      subject.work_orders!
     end
 
-    it "should get the messages from the next sender's slot when a new job is ready" do
-      subject.messages!
-      subject.should_receive(:messages!).and_call_original
-      publisher = -> {foreman.enqueue(messages)}
-      subject.wait_for_messages(publisher) do |redis_messages|
-        redis_messages.should == [messages_with_headers]
+    it "should get the work_orders from the next sender's slot when a new job is ready" do
+      subject.work_orders!
+      subject.should_receive(:work_orders!).and_call_original
+      publisher = -> {foreman.enqueue_work_order(work_orders)}
+      subject.wait_for_work_orders(publisher) do |redis_work_orders|
+        redis_work_orders.should == [work_orders_with_headers]
       end
     end
 
@@ -152,7 +152,7 @@ describe WorkerRoulette do
     it "should eves drop on the job board"
 
     context "Failure" do
-      it "should not put the sender_id and messages back if processing fails bc new messages may have been processed while that process failed" do; end
+      it "should not put the sender_id and work_orders back if processing fails bc new work_orders may have been processed while that process failed" do; end
     end
 
     context "Concurrent Access" do

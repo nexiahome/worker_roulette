@@ -10,16 +10,16 @@ module WorkerRoulette
       WorkerRoulette::JOB_BOARD
     end
 
-    def wait_for_messages(on_subscribe_callback = nil, &block)
+    def wait_for_work_orders(on_subscribe_callback = nil, &block)
       @pubsub_pool.with do |redis|
         redis.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |on|
           on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
-          on.message   {redis.unsubscribe; block.call(messages!) if block}
+          on.message   {redis.unsubscribe; block.call(work_orders!) if block}
         end
       end
     end
 
-    def messages!
+    def work_orders!
       @client_pool.with do |redis|
         get_sender_for_next_job(redis)
         results = redis.multi do
@@ -27,7 +27,7 @@ module WorkerRoulette
           redis.del(sender)
           redis.zrem(WorkerRoulette::JOB_BOARD, sender)
         end
-        ((results || []).first || []).map {|message| Oj.load(message)}
+        ((results || []).first || []).map {|work_order| Oj.load(work_order)}
       end
     end
 

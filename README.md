@@ -12,31 +12,31 @@ WorkerRoulette lets you have thousands of competing consumers (distrubted over a
 
     sender_id = :shady
     foreman = WorkerRoulette.foreman(sender_id)
-    foreman.enqueue(['hello', 'foreman'])
+    foreman.enqueue_work_order(['hello', 'foreman'])
 
     tradesman = WorkerRoulette.tradesman
-    messages = tradesman.messages! #drain the queue of the next available sender
+    messages = tradesman.work_orders! #drain the queue of the next available sender
     messages.first # => ['hello', 'foreman']
 
     other_sender_id = :the_real_slim_shady
     other_foreman = WorkerRoulette.foreman(other_sender_id)
-    other_foreman.enqueue({'can you get me' => 'the number nine?'})
+    other_foreman.enqueue_work_order({'can you get me' => 'the number nine?'})
 
-    messages = tradesman.messages! #drain the queue of the next available sender
+    messages = tradesman.work_orders! #drain the queue of the next available sender
     messages.first # => {'can you get me' => 'the number nine?'}
 
     on_subscribe_callback = -> do
       puts "Huzzah! We're listening!"
-      foreman.enqueue('will I see you later?')
-      foreman.enqueue('can you give me back my dime?')
+      foreman.enqueue_work_order('will I see you later?')
+      foreman.enqueue_work_order('can you give me back my dime?')
     end
 
-    tradesman.wait_for_messages(on_subscribe_callback) do |messages| #drain the queue of the next available sender
+    tradesman.wait_for_work_orders(on_subscribe_callback) do |messages| #drain the queue of the next available sender
       messages # => ['will I see you later', 'can you give me back my dime?']
     end
 
 ##Caveat Emptor
-    While WorkerRoulette does promise to keep the messages of each consumer processed in order by competing consumers, it does NOT guarantee the order in which the queues themselves will be processed. In general, work is processed in a FIFO order, but for performance reasons this has been left a loose FIFO. For example, if Abdul enqueues some ordered messages ('1', '2', and '3') and then so do Mark and Wanda, Mark's messages may be processed first, then it would likely be Abdul's, and then Wanda's. However, even though Mark jumped the line, Abdul's messages will still be processed the order he enqueued them ('1', '2', then '3').
+    While WorkerRoulette does promise to keep the messages of each consumer processed in order by competing consumers, it does NOT guarantee the order in which the queues themselves will be processed. In general, work is processed in a FIFO order, but for performance reasons this has been left a loose FIFO. For example, if Abdul enqueue_work_orders some ordered messages ('1', '2', and '3') and then so do Mark and Wanda, Mark's messages may be processed first, then it would likely be Abdul's, and then Wanda's. However, even though Mark jumped the line, Abdul's messages will still be processed the order he enqueue_work_orderd them ('1', '2', then '3').
 
 ## Installation
 
