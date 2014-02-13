@@ -14,7 +14,7 @@ module WorkerRoulette
       @pubsub_pool.with do |redis|
         redis.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |on|
           on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
-          on.message   {redis.unsubscribe; block.call(work_orders!) if block}
+          on.message   {block.call(work_orders!) if block}
         end
       end
     end
@@ -29,6 +29,10 @@ module WorkerRoulette
         end
         ((results || []).first || []).map {|work_order| Oj.load(work_order)}
       end
+    end
+
+    def unsubscribe
+      @pubsub_pool.with {|redis| redis.unsubscribe}
     end
 
   private

@@ -142,7 +142,7 @@ describe WorkerRoulette do
     it "should get the work_orders from the next sender's slot when a new job is ready" do
       subject.work_orders!
       subject.should_receive(:work_orders!).and_call_original
-      publisher = -> {foreman.enqueue_work_order(work_orders)}
+      publisher = -> {foreman.enqueue_work_order(work_orders); subject.unsubscribe; }
       subject.wait_for_work_orders(publisher) do |redis_work_orders|
         redis_work_orders.should == [work_orders_with_headers]
       end
