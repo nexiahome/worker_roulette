@@ -17,8 +17,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(spec)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency 'redis'
   spec.add_dependency 'oj'
+  spec.add_dependency 'redis', '~> 3.0.7'
   spec.add_dependency 'hiredis', '~> 0.4.5'
   spec.add_dependency 'em-synchrony'
   spec.add_dependency 'connection_pool'
@@ -27,10 +27,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency 'rspec'
   spec.add_development_dependency 'pry-debugger'
-  # spec.add_development_dependency 'guard'
-  # spec.add_development_dependency 'guard-rspec'
-  # spec.add_development_dependency 'simplecov'
-  # spec.add_development_dependency 'simplecov-rcov'
-  # spec.add_development_dependency 'rspec_junit_formatter'
-  # spec.add_development_dependency 'sidekiq'
+  spec.add_development_dependency 'simplecov'
+  spec.add_development_dependency 'simplecov-rcov'
+  spec.add_development_dependency 'rspec_junit_formatter'
 end

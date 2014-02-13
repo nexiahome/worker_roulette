@@ -22,7 +22,7 @@ module WorkerRoulette
       #is added to the job_queue. This is not a big deal bc it just means that
       #the sender's queue will be processed one slot behind it's rightful place.
       #This does not effect work_order ordering.
-      @redis_pool.with do |redis|
+      @redis_pool.with({}) do |redis|
         @count = redis.incr(COUNTER_KEY)
         redis.multi do
           redis.zadd(WorkerRoulette::JOB_BOARD, @count, sender)

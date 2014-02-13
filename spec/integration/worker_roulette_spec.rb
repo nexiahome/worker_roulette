@@ -9,12 +9,10 @@ describe WorkerRoulette do
   let(:work_orders_with_headers) {default_headers.merge({payload: work_orders})}
   let(:jsonized_work_orders_with_headers) {[Oj.dump(work_orders_with_headers)]}
 
-  let(:redis) {Redis.new}
-  let(:pool_size) {10}
+  let(:redis) {Redis.new(WorkerRoulette.redis_config)}
 
   before do
-    WorkerRoulette.start(pool_size)
-    Redis.new.flushdb
+    WorkerRoulette.start
   end
 
   it "should exist" do
@@ -161,13 +159,13 @@ describe WorkerRoulette do
           Thread.new {WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}
         end.each(&:join)
         WorkerRoulette.tradesman_connection_pool.with do |pooled_redis|
-          pooled_redis.info["connected_clients"].to_i.should > (pool_size)
+          pooled_redis.info["connected_clients"].to_i.should > (WorkerRoulette.pool_size)
         end
       end
 
       #This may be fixed soon (10 Feb 2014 - https://github.com/redis/redis-rb/pull/389 and https://github.com/redis/redis-rb/issues/364)
       it "should not be fork() proof -- forking reconnects need to be handled in the calling code (until redis gem is udpated, then we should be fork-proof)" do
-        WorkerRoulette.start(1)
+        WorkerRoulette.start
         WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}
         fork do
           expect {WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}.to raise_error(Redis::InheritedError)
@@ -175,7 +173,12 @@ describe WorkerRoulette do
       end
 
       it "should use optionally non-blocking I/O" do
-        expect {WorkerRoulette.start(1, :driver => :synchrony)}.not_to raise_error
+         EM.synchrony do
+          WorkerRoulette.start(:driver => :synchrony)
+          WorkerRoulette.foreman("muddle_man").enqueue_work_order("foo")
+          WorkerRoulette.tradesman.work_orders!.should == [work_orders_with_headers]
+          EM.stop
+        end
       end
     end
   end

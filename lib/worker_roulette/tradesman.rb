@@ -11,7 +11,7 @@ module WorkerRoulette
     end
 
     def wait_for_work_orders(on_subscribe_callback = nil, &block)
-      @pubsub_pool.with do |redis|
+      @pubsub_pool.with({}) do |redis|
         redis.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |on|
           on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
           on.message   {block.call(work_orders!) if block}
@@ -20,7 +20,7 @@ module WorkerRoulette
     end
 
     def work_orders!
-      @client_pool.with do |redis|
+      @client_pool.with({}) do |redis|
         get_sender_for_next_job(redis)
         results = redis.multi do
           redis.lrange(sender, 0, -1)
@@ -32,7 +32,7 @@ module WorkerRoulette
     end
 
     def unsubscribe
-      @pubsub_pool.with {|redis| redis.unsubscribe}
+      @pubsub_pool.with({}) {|redis| redis.unsubscribe}
     end
 
   private
