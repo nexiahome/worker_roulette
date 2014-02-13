@@ -1,7 +1,7 @@
 require "worker_roulette/version"
+require 'oj'
 require 'redis'
 require 'hiredis'
-require 'oj'
 require 'em-synchrony'
 
 Dir[File.join(File.dirname(__FILE__),'worker_roulette','**','*.rb')].sort.each { |file| require file.gsub(".rb", "")}

@@ -3,10 +3,10 @@ require "spec_helper"
 describe WorkerRoulette do
   let(:sender) {'katie_80'}
   let(:work_orders) {["hello", "foreman"]}
-  let(:default_headers) {Hash[headers: {sender: sender}]}
-  let(:hello_work_order) {Hash[payload: "hello"]}
-  let(:foreman_work_order) {Hash[payload: "foreman"]}
-  let(:work_orders_with_headers) {default_headers.merge({payload: work_orders})}
+  let(:default_headers) {Hash['headers' => {'sender' => sender}]}
+  let(:hello_work_order) {Hash['payload' => "hello"]}
+  let(:foreman_work_order) {Hash['payload' => "foreman"]}
+  let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
   let(:jsonized_work_orders_with_headers) {[Oj.dump(work_orders_with_headers)]}
 
   let(:redis) {Redis.new(WorkerRoulette.redis_config)}
@@ -34,7 +34,7 @@ describe WorkerRoulette do
     it "should enqueue_work_order two work_orders in the sender's slot in the switchboard" do
       subject.enqueue_work_order(work_orders.first)
       subject.enqueue_work_order(work_orders.last)
-      redis.lrange(sender, 0, -1).should == work_orders.map {|m| Oj.dump(default_headers.merge({payload: m})) }
+      redis.lrange(sender, 0, -1).should == work_orders.map {|m| Oj.dump(default_headers.merge({'payload' => m})) }
     end
 
     it "should enqueue_work_order an array of work_orders without headers in the sender's slot in the switchboard" do
@@ -48,9 +48,9 @@ describe WorkerRoulette do
     end
 
     it "should enqueue_work_order an array of work_orders with additional headers in the sender's slot in the switchboard" do
-      extra_headers = {foo: :bars}
+      extra_headers = {'foo' => 'bars'}
       subject.enqueue_work_order(work_orders, extra_headers)
-      work_orders_with_headers[:headers].merge!(extra_headers)
+      work_orders_with_headers['headers'].merge!(extra_headers)
       redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders_with_headers)]
     end
 

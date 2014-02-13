@@ -33,12 +33,12 @@ module WorkerRoulette
     end
 
     def enqueue_work_order(work_order, headers = {})
-      work_order = {headers: default_headers.merge(headers), payload: work_order}
+      work_order = {'headers' => default_headers.merge(headers), 'payload' => work_order}
       enqueue_work_order_without_headers(work_order)
     end
 
     def default_headers
-      Hash[sender: sender]
+      Hash['sender' => sender]
     end
   end
 end
