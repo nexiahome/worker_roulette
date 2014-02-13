@@ -49,7 +49,7 @@ module WorkerRoulette
   end
 
 private
-  def connection_pool
+  def self.connection_pool
     if @redis_config[:driver] == :synchrony
       require 'redis/connection/synchrony'
       require 'em-synchrony/connection_pool'
