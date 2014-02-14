@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["classicist@gmail.com"]
   spec.description   = %q{Write a gem description}
   spec.summary       = %q{Write a gem summary}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/nexiahome/worker_roulette"
 
   spec.files         = `git ls-files`.split($/)
   spec.executables   = spec.files.grep(%r{^bin/}) { |f| File.basename(f) }
