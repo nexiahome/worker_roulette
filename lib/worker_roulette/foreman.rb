@@ -3,17 +3,23 @@ module WorkerRoulette
     attr_reader :sender
     COUNTER_KEY = 'counter_key'
 
-    def initialize(sender, redis_pool)
-      @sender = sender
+    def initialize(sender, redis_pool, namespace = nil)
+      @sender     = sender
+      @namespace  = namespace
       @redis_pool = redis_pool
+      @channel    = namespace || WorkerRoulette::JOB_NOTIFICATIONS
     end
 
     def job_board_key
-      WorkerRoulette::JOB_BOARD
+      @job_board_key ||= "#{@namespace + ':' if @namespace}#{WorkerRoulette::JOB_BOARD}"
+    end
+
+    def sender_key
+      @sender_key ||= "#{@namespace + ':' if @namespace}#{@sender}"
     end
 
     def counter_key
-      COUNTER_KEY
+      @counter_key ||= "#{@namespace + ':' if @namespace}#{COUNTER_KEY}"
     end
 
     def enqueue_work_order_without_headers(work_order)
@@ -25,9 +31,9 @@ module WorkerRoulette
       @redis_pool.with({}) do |redis|
         @count = redis.incr(COUNTER_KEY)
         redis.multi do
-          redis.zadd(WorkerRoulette::JOB_BOARD, @count, sender)
-          redis.rpush(sender, Oj.dump(work_order))
-          redis.publish(WorkerRoulette::JOB_NOTIFICATIONS, WorkerRoulette::JOB_NOTIFICATIONS)
+          redis.zadd(job_board_key, @count, @sender)
+          redis.rpush(sender_key, Oj.dump(work_order))
+          redis.publish(@channel, WorkerRoulette::JOB_NOTIFICATIONS)
         end
       end
     end

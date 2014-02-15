@@ -22,14 +22,14 @@ module WorkerRoulette
     @pubsub_connection_pool     = connection_pool.new(@pool_config) {Redis.new(@redis_config)}
   end
 
-  def self.foreman(sender)
+  def self.foreman(sender, channel = nil)
     raise "WorkerRoulette not Started" unless @foreman_connection_pool
-    Foreman.new(sender, @foreman_connection_pool)
+    Foreman.new(sender, @foreman_connection_pool, channel)
   end
 
-  def self.tradesman
+  def self.tradesman(channel = nil)
     raise "WorkerRoulette not Started" unless @tradesman_connection_pool
-    Tradesman.new(@tradesman_connection_pool, @pubsub_connection_pool)
+    Tradesman.new(@tradesman_connection_pool, @pubsub_connection_pool, channel)
   end
 
   def self.tradesman_connection_pool

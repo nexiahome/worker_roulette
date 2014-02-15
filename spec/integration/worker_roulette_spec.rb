@@ -137,12 +137,33 @@ describe WorkerRoulette do
       subject.work_orders!
     end
 
-    it "should get the work_orders from the next sender's slot when a new job is ready" do
+    it "should get the work_orders from the next queue when a new job is ready" do
       subject.work_orders!
       subject.should_receive(:work_orders!).and_call_original
-      publisher = -> {foreman.enqueue_work_order(work_orders); subject.unsubscribe; }
+
+      publisher = -> {puts :HOO.to_s; foreman.enqueue_work_order(work_orders); subject.unsubscribe}
+
       subject.wait_for_work_orders(publisher) do |redis_work_orders|
         redis_work_orders.should == [work_orders_with_headers]
+      end
+    end
+
+    it "should publish and subscribe on custom channels" do
+      tradesman         = WorkerRoulette.tradesman('good_channel')
+      tradesman.should_receive(:work_orders!).and_call_original
+
+      good_foreman      = WorkerRoulette.foreman('foreman', 'good_channel')
+      bad_foreman       = WorkerRoulette.foreman('foreman', 'bad_channel')
+
+
+      publish  = -> do
+        good_foreman.enqueue_work_order('some old fashion work')
+        bad_foreman.enqueue_work_order('evil biddings you should not carry out')
+        tradesman.unsubscribe
+      end
+
+      tradesman.wait_for_work_orders(publish) do |work|
+        work.to_s.should match("some old fashion work")
       end
     end
 
