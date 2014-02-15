@@ -20,8 +20,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'oj'
   spec.add_dependency 'redis', '~> 3.0.7'
   spec.add_dependency 'hiredis', '~> 0.4.5'
-  spec.add_dependency 'em-synchrony'
+  spec.add_dependency 'em-hiredis', '~> 0.2.1'
   spec.add_dependency 'connection_pool'
+  spec.add_dependency 'eventmachine', '~> 1.0.3'
 
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "rake"
@@ -30,4 +31,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'simplecov'
   spec.add_development_dependency 'simplecov-rcov'
   spec.add_development_dependency 'rspec_junit_formatter'
+  spec.add_development_dependency 'evented-spec'
 end

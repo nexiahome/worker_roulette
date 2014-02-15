@@ -85,7 +85,7 @@ describe WorkerRoulette do
           result = notification
           redis_tradesman.unsubscribe(WorkerRoulette::JOB_NOTIFICATIONS)
         end
-     end
+      end
 
       result.should == WorkerRoulette::JOB_NOTIFICATIONS
     end
@@ -141,7 +141,7 @@ describe WorkerRoulette do
       subject.work_orders!
       subject.should_receive(:work_orders!).and_call_original
 
-      publisher = -> {puts :HOO.to_s; foreman.enqueue_work_order(work_orders); subject.unsubscribe}
+      publisher = -> {foreman.enqueue_work_order(work_orders); subject.unsubscribe}
 
       subject.wait_for_work_orders(publisher) do |redis_work_orders|
         redis_work_orders.should == [work_orders_with_headers]
@@ -191,15 +191,6 @@ describe WorkerRoulette do
         WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}
         fork do
           expect {WorkerRoulette.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}.to raise_error(Redis::InheritedError)
-        end
-      end
-
-      it "should use optionally non-blocking I/O" do
-         EM.synchrony do
-          WorkerRoulette.start(:driver => :synchrony)
-          WorkerRoulette.foreman("muddle_man").enqueue_work_order("foo")
-          WorkerRoulette.tradesman.work_orders!.should == [work_orders_with_headers]
-          EM.stop
         end
       end
     end

@@ -1,5 +1,5 @@
 require 'worker_roulette'
-require 'em-synchrony'
+require 'evented-spec'
 require 'simplecov'
 require 'simplecov-rcov'
 require 'rspec'
@@ -17,30 +17,7 @@ include WorkerRoulette
 
 Dir[File.join(File.dirname(__FILE__), 'helpers', '**/*.rb')].sort.each { |file| require file.gsub(".rb", "")}
 
-module RSpec
-  module Core
-    class ExampleGroup
-
-      class << self
-        alias_method :run_alias, :run
-
-        def run(reporter)
-          if EM.reactor_running?
-            run_alias reporter
-          else
-            out = nil
-            EM.synchrony do
-              out = run_alias reporter
-              EM.stop
-            end
-            out
-          end
-        end
-      end
-
-    end
-  end
-end
+EM::Hiredis.reconnect_timeout = 0.01
 
 RSpec.configure do |c|
   c.after(:each) do

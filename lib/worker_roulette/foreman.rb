@@ -22,7 +22,7 @@ module WorkerRoulette
       @counter_key ||= "#{@namespace + ':' if @namespace}#{COUNTER_KEY}"
     end
 
-    def enqueue_work_order_without_headers(work_order)
+    def enqueue_work_order_without_headers(work_order, &callback)
       #Caveat Emptor: There is a race condition here, but it not serious;
       #the count may be incremented again by another process before the sender
       #is added to the job_queue. This is not a big deal bc it just means that
@@ -38,9 +38,9 @@ module WorkerRoulette
       end
     end
 
-    def enqueue_work_order(work_order, headers = {})
+    def enqueue_work_order(work_order, headers = {}, &callback)
       work_order = {'headers' => default_headers.merge(headers), 'payload' => work_order}
-      enqueue_work_order_without_headers(work_order)
+      enqueue_work_order_without_headers(work_order, &callback)
     end
 
     def default_headers
