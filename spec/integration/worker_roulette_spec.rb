@@ -164,6 +164,7 @@ describe WorkerRoulette do
 
       tradesman.wait_for_work_orders(publish) do |work|
         work.to_s.should match("some old fashion work")
+        work.to_s.should_not match("evil")
       end
     end
 

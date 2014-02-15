@@ -57,11 +57,12 @@ bad_foreman       = WorkerRoulette.foreman('foreman', 'bad_channel')
 
 publish  = -> do
   good_foreman.enqueue_work_order('some old fashion work')
-  bad_foreman.enqueue_work_order('evil biddings you should not carry out') #channels let us ignore his evil orders
+  bad_foreman.enqueue_work_order('evil biddings you should not carry out')
 end
 
 tradesman.wait_for_work_orders(publish) do |work|
   work.to_s.should match("some old fashion work") #only got the work from the good foreman
+  work.to_s.should_not match("evil")              #channels let us ignore the other's evil orders
   tradesman.unsubscribe
 end
 
