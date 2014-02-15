@@ -2,6 +2,7 @@ require 'worker_roulette'
 require 'em-synchrony'
 require 'simplecov'
 require 'simplecov-rcov'
+require 'rspec'
 class SimpleCov::Formatter::MergedFormatter
   def format(result)
      SimpleCov::Formatter::HTMLFormatter.new.format(result)

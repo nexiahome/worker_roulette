@@ -7,7 +7,7 @@ ITERATIONS = 10_000
 
 work_order = {'ding dong' => "hello_foreman_" * 100}
 
-WorkerRoulette.start(REDIS_CONNECTION_POOL_SIZE)#{driver: :synchrony}
+WorkerRoulette.start(size: REDIS_CONNECTION_POOL_SIZE)#{driver: :synchrony}
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 
 puts "Redis Connection Pool Size: #{REDIS_CONNECTION_POOL_SIZE}"
@@ -39,7 +39,7 @@ Benchmark.bmbm do |x|
           foreman.enqueue_work_order(work_order)
         end
       tradesman = WorkerRoulette.tradesman
-      tradesman.wait_for_work_orders(p) {|m| m}
+      tradesman.wait_for_work_orders(p) {|m| m; tradesman.unsubscribe}
     end
   end
 end
