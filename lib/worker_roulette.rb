@@ -36,11 +36,10 @@ module WorkerRoulette
     AForeman.new(sender, @foreman_connection_pool, channel)
   end
 
-  # def self.a_tradesman(channel = nil)
-  #   raise "WorkerRoulette not Started" unless @tradesman_connection_pool
-  #   ATradesman.new(@tradesman_connection_pool, @pubsub_connection_pool, channel)
-  # end
-
+  def self.a_tradesman(channel = nil)
+    raise "WorkerRoulette not Started" unless @tradesman_connection_pool
+    ATradesman.new(@tradesman_connection_pool, @pubsub_connection_pool, channel)
+  end
 
   def self.tradesman_connection_pool
     @tradesman_connection_pool
