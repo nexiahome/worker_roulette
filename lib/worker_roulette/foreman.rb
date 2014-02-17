@@ -15,11 +15,11 @@ module WorkerRoulette
     end
 
     def sender_key
-      @sender_key ||= "#{@namespace + ':' if @namespace}#{@sender}"
+      @sender_key = "#{@namespace + ':' if @namespace}#{@sender}"
     end
 
     def counter_key
-      @counter_key ||= "#{@namespace + ':' if @namespace}#{COUNTER_KEY}"
+      @counter_key = "#{@namespace + ':' if @namespace}#{COUNTER_KEY}"
     end
 
     def enqueue_work_order_without_headers(work_order, &callback)

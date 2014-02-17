@@ -196,6 +196,14 @@ describe WorkerRoulette do
       EM::Hiredis::PubsubClient.any_instance.should_receive(:close_connection).and_call_original
       foreman.enqueue_work_order(work_orders)
     end
+
+    it "should periodically (random time between 10  and 15 seconds?) poll the job board for new work, in case it missed a notification"
+    it "should not delete the messages from the queue until they have been processed succcesfully"
+  end
+
+  context "Read Lock" do
+    it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
+    it "should retry doing work on a queue 3 times if it is locked (ex backoff)"
   end
 
   context "Failure" do
@@ -204,10 +212,6 @@ describe WorkerRoulette do
 
   context "Concurrent Access" do
     it "should not leak connections"
-    it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
-    it "should retry doing work on a queue 3 times if it is locked (ex backoff)"
-    it "should not delete the messages from the queue until they have been processed succcesfully"
-    it "should periodically (10 seconds?) poll the job board for new work"
 
     it "should be fork() proof" do
       @subject = WorkerRoulette.a_tradesman
