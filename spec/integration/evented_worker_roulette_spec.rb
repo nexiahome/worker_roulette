@@ -199,6 +199,8 @@ describe WorkerRoulette do
 
     it "should periodically (random time between 10  and 15 seconds?) poll the job board for new work, in case it missed a notification"
     it "should not delete the messages from the queue until they have been processed succcesfully"
+    it "should not cache the sender our counter keys"
+    it "should pull off more than one patch"
   end
 
   context "Read Lock" do

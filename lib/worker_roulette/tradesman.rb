@@ -13,7 +13,7 @@ module WorkerRoulette
     end
 
     def sender_key
-      @sender_key ||= "#{@namespace + ':' if @namespace}#{@sender}"
+      @sender_key = "#{@namespace + ':' if @namespace}#{@sender}"
     end
 
     def wait_for_work_orders(on_subscribe_callback = nil, &block)
