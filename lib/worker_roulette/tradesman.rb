@@ -20,7 +20,7 @@ module WorkerRoulette
       @pubsub_pool.with do |redis|
         redis.subscribe(@channel) do |on|
           on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
-          on.message   {block.call(work_orders!) if block}
+          on.message   {self.unsubscribe; block.call(work_orders!) if block}
         end
       end
     end
