@@ -205,7 +205,9 @@ describe WorkerRoulette do
   context "Concurrent Access" do
     it "should not leak connections"
     it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
-    it "should retery 3 times if it fails (ex backoff)"
+    it "should retry doing work on a queue 3 times if it is locked (ex backoff)"
+    it "should not delete the messages from the queue until they have been processed succcesfully"
+    it "should periodically (10 seconds?) poll the job board for new work"
 
     it "should be fork() proof" do
       @subject = WorkerRoulette.a_tradesman
