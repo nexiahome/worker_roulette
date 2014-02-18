@@ -53,26 +53,26 @@ Benchmark.bmbm do |x|
   end
 end
 
-# Benchmark.bmbm do |x|
-#   x.report "Time to evently pubsub insert and read #{ITERATIONS} large work_orders" do # ~2500 work_orders / second round trip; 50-50 read-write time; CPU and IO bound
-#     EM.run do
-#       @processed = 0
-#       @total     = 0
-#       WorkerRoulette.start(evented: true)#{driver: :synchrony}
-#       WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
-#       @total = 0
-#       @tradesman = WorkerRoulette.a_tradesman
-#       on_subscribe = ->(*args) do
-#         ITERATIONS.times do |iteration|
-#           sender = 'sender_' + iteration.to_s
-#           foreman = WorkerRoulette.a_foreman(sender)
-#           foreman.enqueue_work_order(work_order)
-#         end
-#       end
-#       @tradesman.wait_for_work_orders(on_subscribe) {@processed += 1; EM.stop if @processed == (ITERATIONS - 1)}
-#     end
-#   end
-# end
+Benchmark.bmbm do |x|
+  x.report "Time to evently pubsub insert and read #{ITERATIONS} large work_orders" do # ~2500 work_orders / second round trip; 50-50 read-write time; CPU and IO bound
+    EM.run do
+      @processed = 0
+      @total     = 0
+      WorkerRoulette.start(evented: true)#{driver: :synchrony}
+      WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
+      @total = 0
+      @tradesman = WorkerRoulette.a_tradesman
+      on_subscribe = ->(*args) do
+        ITERATIONS.times do |iteration|
+          sender = 'sender_' + iteration.to_s
+          foreman = WorkerRoulette.a_foreman(sender)
+          foreman.enqueue_work_order(work_order)
+        end
+      end
+      @tradesman.wait_for_work_orders(on_subscribe) {@processed += 1; EM.stop if @processed == (ITERATIONS - 1)}
+    end
+  end
+end
 
 # WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 
