@@ -4,6 +4,7 @@ require 'redis'
 require 'hiredis'
 require 'em-hiredis'
 require 'connection_pool'
+require "digest/sha1"
 
 Dir[File.join(File.dirname(__FILE__),'worker_roulette','**','*.rb')].sort.each { |file| require file.gsub(".rb", "")}
 

@@ -23,9 +23,9 @@ describe WorkerRoulette do
     it "should enqueue work" do
       called = false
       foreman      = WorkerRoulette.a_foreman('foreman')
-      foreman.enqueue_work_order('some old fashion work') do |redis_response|
+      foreman.enqueue_work_order('some old fashion work') do |redis_response, stuff|
         called = true
-        redis_response.should == [1, 1, 0]
+        redis_response.should == 'foreman added'
       end
       done(0.1) {called.should == true}
     end
@@ -63,28 +63,28 @@ describe WorkerRoulette do
     end
 
     it "should post the sender's id to the job board with an order number" do
-      subject.enqueue_work_order(work_orders.first) do
-        subject.enqueue_work_order(work_orders.last) do
-          redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [[sender.to_s, work_orders.length.to_f]]
-          done
+      first_foreman      = WorkerRoulette.a_foreman('first_foreman')
+      first_foreman.enqueue_work_order('foo') do
+        subject.enqueue_work_order(work_orders.first) do
+          subject.enqueue_work_order(work_orders.last) do
+            redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [["first_foreman", 1.0], ["katie_80", 2.0]]
+            done
+          end
         end
       end
     end
 
-    it "should post the sender_id and work_orders transactionally" do
-      EM::Hiredis::Client.any_instance.should_receive(:multi).and_call_original
-      subject.enqueue_work_order(work_orders.first)  do
-        done
-      end
-    end
-
-    it "should generate sequential order numbers" do
+    it "should generate a monotically increasing score for senders not on the job board, but not for senders already there" do
+      first_foreman = WorkerRoulette.a_foreman('first_foreman')
       redis.get(subject.counter_key).should == nil
-      subject.enqueue_work_order(work_orders.first) do
+      first_foreman.enqueue_work_order(work_orders.first) do
         redis.get(subject.counter_key).should == "1"
-        subject.enqueue_work_order(work_orders.last) do
-          redis.get(subject.counter_key).should == "2"
-          done
+        first_foreman.enqueue_work_order(work_orders.last) do
+          redis.get(subject.counter_key).should == "1"
+          subject.enqueue_work_order(work_orders.first) do
+            redis.get(subject.counter_key).should == "2"
+            done
+          end
         end
       end
     end
@@ -104,7 +104,7 @@ describe WorkerRoulette do
     let(:foreman) {WorkerRoulette.a_foreman(sender)}
     let(:subject)  {WorkerRoulette.a_tradesman}
 
-    it "should be working on behalf of a sender" do
+    xit "should be working on behalf of a sender" do
       foreman.enqueue_work_order(work_orders) do
         subject.work_orders! do
           subject.sender.should == sender
@@ -114,7 +114,7 @@ describe WorkerRoulette do
     end
 
 
-    it "should drain one set of work_orders from the sender's slot in the job board" do
+    xit "should drain one set of work_orders from the sender's slot in the job board" do
       foreman.enqueue_work_order(work_orders) do
         subject.work_orders! do |r|
           r.should == [work_orders_with_headers]
@@ -125,7 +125,7 @@ describe WorkerRoulette do
       end
     end
 
-    it "should take the oldest sender off the job board (FIFO)" do
+    xit "should take the oldest sender off the job board (FIFO)" do
       foreman.enqueue_work_order(work_orders) do
         oldest_sender = sender.to_s
         most_recent_sender = 'most_recent_sender'
@@ -137,12 +137,12 @@ describe WorkerRoulette do
       end
     end
 
-    it "should get the sender and work_order list transactionally" do
+    xit "should get the sender and work_order list transactionally" do
       EM::Hiredis::Client.any_instance.should_receive(:multi).and_call_original
       subject.work_orders! {done}
     end
 
-    it "should get the work_orders from the next queue when a new job is ready" do
+    xit "should get the work_orders from the next queue when a new job is ready" do
       subject.should_receive(:work_orders!).and_call_original
 
       subject.wait_for_work_orders do |redis_work_orders, message, channel|
@@ -154,7 +154,7 @@ describe WorkerRoulette do
       foreman.enqueue_work_order(work_orders)
     end
 
-    it "should publish and subscribe on custom channels" do
+    xit "should publish and subscribe on custom channels" do
       good_subscribed   = false
       bad_subscribed    = false
 
@@ -189,7 +189,7 @@ describe WorkerRoulette do
       done(0.2)
     end
 
-    it "should unsubscribe from the job board" do
+    xit "should unsubscribe from the job board" do
       subject.wait_for_work_orders do |redis_work_orders, message, channel|
         subject.unsubscribe {done}
       end
@@ -215,7 +215,7 @@ describe WorkerRoulette do
   context "Concurrent Access" do
     it "should not leak connections"
 
-    it "should be fork() proof" do
+    xit "should be fork() proof" do
       @subject = WorkerRoulette.a_tradesman
       @subject.work_orders! do
         fork do

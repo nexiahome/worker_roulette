@@ -3,6 +3,8 @@ require 'evented-spec'
 require 'simplecov'
 require 'simplecov-rcov'
 require 'rspec'
+require 'pry'
+
 class SimpleCov::Formatter::MergedFormatter
   def format(result)
      SimpleCov::Formatter::HTMLFormatter.new.format(result)
