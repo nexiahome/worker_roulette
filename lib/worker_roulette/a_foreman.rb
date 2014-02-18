@@ -16,6 +16,14 @@ module WorkerRoulette
       end
     end
 
+    def self.load_script(&callback)
+      WorkerRoulette.tradesman_connection_pool.with do |redis|
+        df = redis.load(lua_enqueue_work_orders)
+        df.callback &callback
+        df.errback  &callback
+      end
+    end
+
     def self.lua_enqueue_work_orders
       <<-HERE
         local counter_key       = KEYS[1]

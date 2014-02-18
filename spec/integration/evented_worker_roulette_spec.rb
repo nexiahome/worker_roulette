@@ -98,6 +98,12 @@ describe WorkerRoulette do
         done
       end.callback { subject.enqueue_work_order(work_orders) }
     end
+
+    it "should load a lua script" do
+      AForeman.load_script do |sha|
+        sha.should == 'foo'
+      end
+    end
   end
 
   context Tradesman do
