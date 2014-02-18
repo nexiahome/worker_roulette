@@ -227,8 +227,20 @@ describe WorkerRoulette do
       EM::Hiredis::PubsubClient.any_instance.should_receive(:close_connection).and_call_original
     end
 
-    it "should periodically (random time between 10  and 15 seconds?) poll the job board for new work, in case it missed a notification"
-    xit "should not delete the messages from the queue until they have been processed succcesfully"
+    it "should periodically (random time between 20 and 25 seconds?) poll the job board for new work, in case it missed a notification" do
+      EM::PeriodicTimer.should_receive(:new) {|time| time.should be_within(2.5).of(22.5)}
+      publish = proc {foreman.enqueue_work_order('foo')}
+      subject.wait_for_work_orders(publish) {done}
+    end
+
+    xit "should cancel the old timer when the on_message callback is called" do
+      publish = proc {foreman.enqueue_work_order('foo')}
+      subject.wait_for_work_orders(publish) do
+        subject.send(:timer).should_receive(:cancel).and_call_original
+        done
+      end
+    end
+
     it "should pull off work orders for more than one sender" do
       tradesman         = WorkerRoulette.a_tradesman('good_channel')
 
@@ -254,9 +266,10 @@ describe WorkerRoulette do
     end
   end
 
-  context "Read Lock" do
-    it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
-    it "should retry doing work on a queue 3 times if it is locked (ex backoff)"
+  context "Potential Ack Success/Failure for Processing Queues" do
+    xit "should not delete the messages from the queue until they have been processed succcesfully"
+    xit "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
+    xit "should retry doing work on a queue 3 times if it is locked (ex backoff)"
   end
 
   context "Failure" do
