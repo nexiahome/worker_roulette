@@ -228,9 +228,30 @@ describe WorkerRoulette do
     end
 
     it "should periodically (random time between 10  and 15 seconds?) poll the job board for new work, in case it missed a notification"
-    it "should not delete the messages from the queue until they have been processed succcesfully"
-    it "should not cache the sender our counter keys"
-    it "should pull off work orders for more than one sender"
+    xit "should not delete the messages from the queue until they have been processed succcesfully"
+    it "should pull off work orders for more than one sender" do
+      tradesman         = WorkerRoulette.a_tradesman('good_channel')
+
+      good_foreman      = WorkerRoulette.a_foreman('good_foreman', 'good_channel')
+      lazy_foreman      = WorkerRoulette.a_foreman('lazy_foreman', 'good_channel')
+
+      got_good = false
+      got_lazy  = false
+      good_foreman.enqueue_work_order('do good work') do
+        tradesman.work_orders! do |r|
+          got_good = true
+          r.first['payload'].should == ('do good work')
+        end
+      end
+      lazy_foreman.enqueue_work_order('just get it done') do
+        tradesman.work_orders! do |r|
+          got_lazy = true
+          r.first['payload'].should == ('just get it done')
+        end
+      end
+
+      done(0.2) {(got_good && got_lazy).should == true}
+    end
   end
 
   context "Read Lock" do
