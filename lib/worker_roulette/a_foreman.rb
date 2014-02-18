@@ -2,15 +2,11 @@ require_relative './foreman'
 module WorkerRoulette
   class AForeman < Foreman
     def enqueue_work_order_without_headers(work_order, &callback)
-      #Caveat Emptor: There is a race condition here, but it not serious;
-      #the count may be incremented again by another process before the sender
-      #is added to the job_queue. This is not a big deal bc it just means that
-      #the sender's queue will be processed one slot behind it's rightful place.
-      #This does not effect work_order ordering.
       Lua.call(self.class.lua_enqueue_work_orders, [COUNTER_KEY, job_board_key, sender_key, @channel],
                    [@sender, Oj.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
     end
 
+  private
     def self.lua_enqueue_work_orders
       <<-HERE
         local counter_key       = KEYS[1]
@@ -24,11 +20,11 @@ module WorkerRoulette
 
         local function enqueue_work_orders(sender, work_order, job_notification)
           local result    = sender .. ' updated'
-          local sender_on_job_board = redis.call('ZSCORE', job_board_key, sender)
+          local sender_on_job_board = redis.call('ZSCORE', job_board_key, sender_key)
 
           if (sender_on_job_board == false) then
             local count     = redis.call('INCR', counter_key)
-            local job_added = redis.call('ZADD',job_board_key, count, sender)
+            local job_added = redis.call('ZADD',job_board_key, count, sender_key)
             result    = sender .. ' added'
           end
 

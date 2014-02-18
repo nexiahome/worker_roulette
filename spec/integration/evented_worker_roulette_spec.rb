@@ -143,9 +143,9 @@ describe WorkerRoulette do
     let(:foreman) {WorkerRoulette.a_foreman(sender)}
     let(:subject)  {WorkerRoulette.a_tradesman}
 
-    xit "should be working on behalf of a sender" do
+    it "should be working on behalf of a sender" do
       foreman.enqueue_work_order(work_orders) do
-        subject.work_orders! do
+        subject.work_orders! do |r|
           subject.sender.should == sender
           done
         end
@@ -153,7 +153,7 @@ describe WorkerRoulette do
     end
 
 
-    xit "should drain one set of work_orders from the sender's slot in the job board" do
+    it "should drain one set of work_orders from the sender's slot in the job board" do
       foreman.enqueue_work_order(work_orders) do
         subject.work_orders! do |r|
           r.should == [work_orders_with_headers]
@@ -164,7 +164,7 @@ describe WorkerRoulette do
       end
     end
 
-    xit "should take the oldest sender off the job board (FIFO)" do
+    it "should take the oldest sender off the job board (FIFO)" do
       foreman.enqueue_work_order(work_orders) do
         oldest_sender = sender.to_s
         most_recent_sender = 'most_recent_sender'
@@ -176,24 +176,19 @@ describe WorkerRoulette do
       end
     end
 
-    xit "should get the sender and work_order list transactionally" do
-      EM::Hiredis::Client.any_instance.should_receive(:multi).and_call_original
-      subject.work_orders! {done}
-    end
-
-    xit "should get the work_orders from the next queue when a new job is ready" do
+    it "should get the work_orders from the next queue when a new job is ready" do
       subject.should_receive(:work_orders!).and_call_original
+      publish = proc {foreman.enqueue_work_order(work_orders)}
 
-      subject.wait_for_work_orders do |redis_work_orders, message, channel|
+      subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
         subject.sender.should == "katie_80"
         redis_work_orders.should == [work_orders_with_headers]
         done
       end
 
-      foreman.enqueue_work_order(work_orders)
     end
 
-    xit "should publish and subscribe on custom channels" do
+    it "should publish and subscribe on custom channels" do
       good_subscribed   = false
       bad_subscribed    = false
 
@@ -203,8 +198,8 @@ describe WorkerRoulette do
       good_foreman      = WorkerRoulette.a_foreman('foreman', 'good_channel')
       bad_foreman       = WorkerRoulette.a_foreman('foreman', 'bad_channel')
 
-      good_publish = ->(a,b) {good_subscribed =  true}
-      bad_publish  = ->(a,b) {bad_subscribed =  true}
+      good_publish = proc {good_foreman.enqueue_work_order('some old fashion work')}
+      bad_publish  = proc {bad_foreman.enqueue_work_order('evil biddings you should not carry out')}
 
       tradesman.should_receive(:work_orders!).and_call_original
       evil_tradesman.should_receive(:work_orders!).and_call_original
@@ -214,26 +209,22 @@ describe WorkerRoulette do
       tradesman.wait_for_work_orders(good_publish) do |good_work|
         good_work.to_s.should match("old fashion")
         good_work.to_s.should_not match("evil")
-        good_subscribed.should == true
       end
 
       evil_tradesman.wait_for_work_orders(bad_publish) do |bad_work|
         bad_work.to_s.should_not match("old fashion")
         bad_work.to_s.should match("evil")
-        bad_subscribed.should == true
       end
 
-      good_foreman.enqueue_work_order('some old fashion work')
-      bad_foreman.enqueue_work_order('evil biddings you should not carry out')
       done(0.2)
     end
 
-    xit "should unsubscribe from the job board" do
-      subject.wait_for_work_orders do |redis_work_orders, message, channel|
+    it "should unsubscribe from the job board" do
+      publish = proc {foreman.enqueue_work_order(work_orders)}
+      subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
         subject.unsubscribe {done}
       end
       EM::Hiredis::PubsubClient.any_instance.should_receive(:close_connection).and_call_original
-      foreman.enqueue_work_order(work_orders)
     end
 
     it "should periodically (random time between 10  and 15 seconds?) poll the job board for new work, in case it missed a notification"
@@ -254,7 +245,7 @@ describe WorkerRoulette do
   context "Concurrent Access" do
     it "should not leak connections"
 
-    xit "should be fork() proof" do
+    it "should be fork() proof" do
       @subject = WorkerRoulette.a_tradesman
       @subject.work_orders! do
         fork do
