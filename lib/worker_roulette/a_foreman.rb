@@ -7,21 +7,8 @@ module WorkerRoulette
       #is added to the job_queue. This is not a big deal bc it just means that
       #the sender's queue will be processed one slot behind it's rightful place.
       #This does not effect work_order ordering.
-      @redis_pool.with do |redis|
-        df = redis.eval(self.class.lua_enqueue_work_orders, 4,
-                   *[COUNTER_KEY, job_board_key, sender_key, @channel],
-                   *[@sender, Oj.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS])
-        df.callback &callback
-        df.errback &callback
-      end
-    end
-
-    def self.load_script(&callback)
-      WorkerRoulette.tradesman_connection_pool.with do |redis|
-        df = redis.load(lua_enqueue_work_orders)
-        df.callback &callback
-        df.errback  &callback
-      end
+      Lua.call(self.class.lua_enqueue_work_orders, [COUNTER_KEY, job_board_key, sender_key, @channel],
+                   [@sender, Oj.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
     end
 
     def self.lua_enqueue_work_orders
