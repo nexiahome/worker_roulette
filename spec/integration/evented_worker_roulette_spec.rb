@@ -266,6 +266,10 @@ describe WorkerRoulette do
     end
   end
 
+  it "should return a hash with a string in the payload if OJ cannot parse the json" do
+
+  end
+
   context "Potential Ack Success/Failure for Processing Queues" do
     xit "should not delete the messages from the queue until they have been processed succcesfully"
     xit "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"

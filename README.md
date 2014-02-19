@@ -4,32 +4,39 @@ WorkerRoulette is designed to allow large numbers of unique devices, processes, 
 
 WorkerRoulette lets you have thousands of competing consumers (distrubted over as many machines as you'd like) processing ordered messages from millions of totally unknown message providers. It does all this and ensures that the messages sent from each message provider are processed in exactly the order it sent them.
 
-## General Usage
+## Asynchronous Api (Evented)
 ```ruby
 size_of_connection_pool = 100
-redis_config = {host: 'localhost', timeout: 5, db: 1}
 
 #Start it up
-WorkerRoulette.start(size_of_connection_pool, redis_config)
+#the config takes size for the connection pool size, evented to specify which api to use, then the normal redis config
+WorkerRoulette.start(size: size_of_connection_pool, evented: false, host: 'localhost', timeout: 5, db: 1)
 
 #Enqueue some work
 sender_id = :shady
-foreman = WorkerRoulette.foreman(sender_id)
-foreman.enqueue_work_order(['hello', 'foreman'])
+foreman = WorkerRoulette.a_foreman(sender_id)
+
+foreman.enqueue_work_order(['hello', 'foreman']) do |msg|
+  puts "work enqueued #{msg}"
+end
 
 #Pull it off
-tradesman = WorkerRoulette.tradesman
-messages = tradesman.work_orders! #drain the queue of the next available sender
-messages.first # => ['hello', 'foreman']
+tradesman = WorkerRoulette.a_tradesman
+tradesman.work_orders! do |work_orders| #drain the queue of the next available sender
+  work_orders.first # => ['hello', 'foreman']
+end
 
 #Enqueue some more from someone else
 other_sender_id = :the_real_slim_shady
-other_foreman = WorkerRoulette.foreman(other_sender_id)
-other_foreman.enqueue_work_order({'can you get me' => 'the number nine?'})
+other_foreman = WorkerRoulette.a_foreman(other_sender_id)
+other_foreman.enqueue_work_order({'can you get me' => 'the number nine?'}) do |msg|
+  puts "work enqueued #{msg}"
+end
 
 #Have the same worker pull that off
-messages = tradesman.work_orders! #drain the queue of the next available sender
-messages.first # => {'can you get me' => 'the number nine?'}
+tradesman.work_orders! do |work_orders| #drain the queue of the next available sender
+  work_orders.first # => {'can you get me' => 'the number nine?'}
+end
 
 #Have your workers wait for work to come in
 on_subscribe_callback = -> do
@@ -40,9 +47,53 @@ end
 
 
 #And they will pull it off as it comes, as long as it comes
-#(This is a blocking operation, so it is best in Threads or EventMachine.next_tick)
-tradesman.wait_for_work_orders(on_subscribe_callback) do |messages| #drain the queue of the next available sender
-  messages # => ['will I see you later', 'can you give me back my dime?']
+#NB: This is NOT a blocking operation, so no worries
+tradesman.wait_for_work_orders(on_subscribe_callback) do |work_orders, message, channel| #drain the queue of the next available sender
+  work_orders # => ['will I see you later', 'can you give me back my dime?']
+  message # => 'new_job_ready'
+  channel # => '' #the name of the channel the message was published on, if one was used -- see below
+end
+```
+
+## Synchronous Api
+```ruby
+size_of_connection_pool = 100
+
+#Start it up
+#the config takes size for the connection pool size, evented to specify which api to use, then the normal redis config
+WorkerRoulette.start(size: size_of_connection_pool, evented: false, host: 'localhost', timeout: 5, db: 1)
+
+#Enqueue some work
+sender_id = :shady
+foreman = WorkerRoulette.foreman(sender_id)
+foreman.enqueue_work_order(['hello', 'foreman'])
+
+#Pull it off
+tradesman = WorkerRoulette.tradesman
+work_orders = tradesman.work_orders! #drain the queue of the next available sender
+work_orders.first # => ['hello', 'foreman']
+
+#Enqueue some more from someone else
+other_sender_id = :the_real_slim_shady
+other_foreman = WorkerRoulette.foreman(other_sender_id)
+other_foreman.enqueue_work_order({'can you get me' => 'the number nine?'})
+
+#Have the same worker pull that off
+work_orders = tradesman.work_orders! #drain the queue of the next available sender
+work_orders.first # => {'can you get me' => 'the number nine?'}
+
+#Have your workers wait for work to come in
+on_subscribe_callback = -> do
+  puts "Huzzah! We're listening!"
+  foreman.enqueue_work_order('will I see you later?')
+  foreman.enqueue_work_order('can you give me back my dime?')
+end
+
+
+#And they will pull it off as it comes, as long as it comes
+#NB: This IS a blocking operation
+tradesman.wait_for_work_orders(on_subscribe_callback) do |work_orders| #drain the queue of the next available sender
+  work_orders # => ['will I see you later', 'can you give me back my dime?']
 end
 ```
 
@@ -65,11 +116,28 @@ tradesman.wait_for_work_orders(publish) do |work|
   work.to_s.should_not match("evil")              #channels let us ignore the other's evil orders
   tradesman.unsubscribe
 end
-
 ```
 
+## Performance
+Running the performance tests on my laptop, the numbers break down like this:
+### Async Api
+  - Manual: ~4200 read-write round-trips / second
+  - Pubsub: ~5200 read-write round-trips / second
+
+### Sync Api
+  - Manual: ~1600 read-write round-trips / second
+  - Pubsub: ~2000 read-write round-trips / second
+
+To run the perf tests yourself run `bundle exec spec:perf`
+
+## Redis Pubsub and Polling
+The `wait_for_work_orders` method works using Redis' pubsub mechanism. The advantage to this is that it is very fast and minimizes network traffic. The downside is that Redis' pubsub implementation is 'fire and forget', so any subscribers who are not listening at the moment the message is published will miss it. In order to compensate for this, WorkerRoulette's Async Api creates a backup timer (using EM.add_periodic_timer) that will poll redis every 20-25 seconds for new work. Since the timer is reset every time new work comes in, if you have an active publisher, the timer may never need to fire. It only serves a backup to make sure no work is left waiting in the queues because of network problems. Since there is no one polling mechanism that works for all situations in a synchrounous environment, this feature is only available through the Async Api.
+
+## Redis Version
+WorkerRoulette uses Redis' lua scripting feature to acheive such high throughput and therefore requires a version of Redis that supports lua scripting (>= Redis 2.6)
+
 ##Caveat Emptor
-While WorkerRoulette does promise to keep the messages of each consumer processed in order by competing consumers, it does NOT guarantee the order in which the queues themselves will be processed. In general, work is processed in a FIFO order, but for performance reasons this has been left a loose FIFO. For example, if Abdul enqueues some ordered messages ('1', '2', and '3') and then so do Mark and Wanda, Mark's messages may be processed first, then it would likely be Abdul's, and then Wanda's. However, even though Mark jumped the line, Abdul's messages will still be processed the order he enqueued them ('1', '2', then '3').
+While WorkerRoulette does promise to keep the messages of each consumer processed in order by competing consumers, it does NOT guarantee the order in which the queues themselves will be processed. In general, work is processed in a FIFO order, but for performance reasons this has been left a loose FIFO. For example, if Abdul enqueues some ordered messages ('1', '2', and '3') and then so do Mark and Wanda, Mark's messages may be processed first, then it would likely be Abdul's, and then Wanda's. However, even though Mark jumped the line, Abdul's messages will still be processed in the order he enqueued them ('1', '2', then '3').
 
 ## Installation
 
