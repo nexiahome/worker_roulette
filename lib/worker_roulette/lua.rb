@@ -4,9 +4,7 @@ module WorkerRoulette
 
     def self.call(lua_script, keys_accessed = [], args = [], &callback)
       WorkerRoulette.tradesman_connection_pool.with do |redis|
-        results = redis.evalsha(sha(lua_script), keys_accessed.length, *keys_accessed, *args)
-        results.callback &callback
-        results.errback {self.eval(redis, lua_script, keys_accessed, args, &callback)}
+        results = evalsha(redis, lua_script, keys_accessed, args, &callback)
       end
     end
 
@@ -24,8 +22,25 @@ module WorkerRoulette
 
     def self.eval(redis, lua_script, keys_accessed, args, &callback)
       results = redis.eval(lua_script, keys_accessed.size, *keys_accessed, *args)
-      results.callback &callback
+      results.callback &callback if callback
       results.errback  {|err_msg| raise EM::Hiredis::RedisError.new(err_msg)}
+    end
+
+    def self.evalsha(redis, lua_script, keys_accessed, args, &callback)
+      if redis.class == EM::Hiredis::Client
+        results = redis.evalsha(sha(lua_script), keys_accessed.length, *keys_accessed, *args)
+        results.callback &callback if callback
+        results.errback {self.eval(redis, lua_script, keys_accessed, args, &callback)}
+      else
+        begin
+          results = redis.evalsha(sha(lua_script), keys_accessed, args)
+        rescue Redis::CommandError
+          results = redis.eval(lua_script, keys_accessed, args)
+        ensure
+          return callback.call results if callback
+        end
+      end
+      results
     end
   end
 end

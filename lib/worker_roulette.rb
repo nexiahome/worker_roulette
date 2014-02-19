@@ -33,8 +33,7 @@ module WorkerRoulette
   end
 
   def self.a_foreman(sender, channel = nil)
-    raise "WorkerRoulette not Started" unless @foreman_connection_pool
-    AForeman.new(sender, @foreman_connection_pool, channel)
+    foreman(sender, channel)
   end
 
   def self.a_tradesman(channel = nil)
@@ -58,6 +57,29 @@ module WorkerRoulette
     @redis_config.dup
   end
 
+  def self.dump(obj)
+    Oj.dump(obj)
+  rescue Oj::ParseError => e
+    {'error' => e, 'unparsable_string' => obj}
+  end
+
+  def self.load(json)
+    Oj.load(json)
+  rescue Oj::ParseError => e
+    {'error' => e, 'unparsable_string' => obj}
+  end
+
+  def self.job_board_key(namespace = nil)
+    "#{namespace + ':' if namespace}#{WorkerRoulette::JOB_BOARD}"
+  end
+
+  def self.sender_key(sender, namespace = nil)
+    "#{namespace + ':' if namespace}#{sender}"
+  end
+
+  def self.counter_key(sender, namespace = nil)
+    "#{namespace + ':' if namespace}counter_key"
+  end
 private
   def self.new_redis
     if @evented

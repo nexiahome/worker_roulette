@@ -9,7 +9,7 @@ describe WorkerRoulette do
   let(:hello_work_order) {Hash['payload' => "hello"]}
   let(:foreman_work_order) {Hash['payload' => "foreman"]}
   let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
-  let(:jsonized_work_orders_with_headers) {[Oj.dump(work_orders_with_headers)]}
+  let(:jsonized_work_orders_with_headers) {[WorkerRoulette.dump(work_orders_with_headers)]}
 
   let(:redis) {Redis.new(WorkerRoulette.redis_config)}
 
@@ -17,7 +17,7 @@ describe WorkerRoulette do
     WorkerRoulette.start(evented: true)
   end
 
-  context Foreman do
+  context "Evented Foreman" do
     let(:subject) {WorkerRoulette.a_foreman(sender)}
 
     it "should enqueue work" do
@@ -33,7 +33,7 @@ describe WorkerRoulette do
     it "should enqueue_work_order two work_orders in the sender's slot in the job board" do
       subject.enqueue_work_order(work_orders.first) do
         subject.enqueue_work_order(work_orders.last) do
-          redis.lrange(sender, 0, -1).should == work_orders.map {|m| Oj.dump(default_headers.merge({'payload' => m})) }
+          redis.lrange(sender, 0, -1).should == work_orders.map {|m| WorkerRoulette.dump(default_headers.merge({'payload' => m})) }
           done
         end
       end
@@ -41,7 +41,7 @@ describe WorkerRoulette do
 
     it "should enqueue_work_order an array of work_orders without headers in the sender's slot in the job board" do
       subject.enqueue_work_order_without_headers(work_orders) do
-        redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders)]
+        redis.lrange(sender, 0, -1).should == [WorkerRoulette.dump(work_orders)]
         done
       end
     end
@@ -57,7 +57,7 @@ describe WorkerRoulette do
       extra_headers = {'foo' => 'bars'}
       subject.enqueue_work_order(work_orders, extra_headers) do
         work_orders_with_headers['headers'].merge!(extra_headers)
-        redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders_with_headers)]
+        redis.lrange(sender, 0, -1).should == [WorkerRoulette.dump(work_orders_with_headers)]
         done
       end
     end
@@ -139,7 +139,7 @@ describe WorkerRoulette do
     end
   end
 
-  context Tradesman do
+  context "Evented Tradesman" do
     let(:foreman) {WorkerRoulette.a_foreman(sender)}
     let(:subject)  {WorkerRoulette.a_tradesman}
 
@@ -266,14 +266,8 @@ describe WorkerRoulette do
     end
   end
 
-  it "should return a hash with a string in the payload if OJ cannot parse the json" do
+  xit "should return a hash with a string in the payload if OJ cannot parse the json" do
 
-  end
-
-  context "Potential Ack Success/Failure for Processing Queues" do
-    xit "should not delete the messages from the queue until they have been processed succcesfully"
-    xit "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
-    xit "should retry doing work on a queue 3 times if it is locked (ex backoff)"
   end
 
   context "Failure" do

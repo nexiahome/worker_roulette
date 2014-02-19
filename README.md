@@ -121,12 +121,12 @@ end
 ## Performance
 Running the performance tests on my laptop, the numbers break down like this:
 ### Async Api
-  - Manual: ~4200 read-write round-trips / second
-  - Pubsub: ~5200 read-write round-trips / second
+  - Pubsub: ~5500 read-write round-trips / second
+  - Manual: ~4500 read-write round-trips / second
 
 ### Sync Api
-  - Manual: ~1600 read-write round-trips / second
-  - Pubsub: ~2000 read-write round-trips / second
+  - Pubsub: ~2700 read-write round-trips / second
+  - Manual: ~2500 read-write round-trips / second
 
 To run the perf tests yourself run `bundle exec spec:perf`
 

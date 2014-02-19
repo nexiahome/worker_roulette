@@ -12,7 +12,7 @@ WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 puts "Redis Connection Pool Size: #{REDIS_CONNECTION_POOL_SIZE}"
 
 Benchmark.bmbm do |x|
-  x.report "Time to insert and read #{ITERATIONS} large work_orders" do # ~1600 work_orders / second round trip; 50-50 read-write time; CPU and IO bound
+  x.report "Time to insert and read #{ITERATIONS} large work_orders" do # ~2500 work_orders / second round trip; 50-50 read-write time; CPU and IO bound
     WorkerRoulette.start(size: REDIS_CONNECTION_POOL_SIZE, evented: false)
     ITERATIONS.times do |iteration|
       sender = 'sender_' + iteration.to_s
@@ -33,7 +33,7 @@ EM::Hiredis.reconnect_timeout = 0.01
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 
 Benchmark.bmbm do |x|
-  x.report "Time for tradesmans to enqueue_work_order and read #{ITERATIONS} large work_orders via pubsub" do # ~2000 work_orders / second round trip
+  x.report "Time for tradesmans to enqueue_work_order and read #{ITERATIONS} large work_orders via pubsub" do # ~2700 work_orders / second round trip
     WorkerRoulette.start(size: REDIS_CONNECTION_POOL_SIZE, evented: false)
     ITERATIONS.times do |iteration|
       p = -> do

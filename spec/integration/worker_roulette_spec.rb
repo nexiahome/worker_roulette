@@ -7,7 +7,7 @@ describe WorkerRoulette do
   let(:hello_work_order) {Hash['payload' => "hello"]}
   let(:foreman_work_order) {Hash['payload' => "foreman"]}
   let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
-  let(:jsonized_work_orders_with_headers) {[Oj.dump(work_orders_with_headers)]}
+  let(:jsonized_work_orders_with_headers) {[WorkerRoulette.dump(work_orders_with_headers)]}
 
   let(:redis) {Redis.new(WorkerRoulette.redis_config)}
 
@@ -26,20 +26,15 @@ describe WorkerRoulette do
       subject.sender.should == sender
     end
 
-    it "should be injected with a raw_redis_client so it can do is work" do
-      Redis.any_instance.should_receive(:rpush)
-      subject.enqueue_work_order(:whatever)
-    end
-
     it "should enqueue_work_order two work_orders in the sender's slot in the switchboard" do
-      subject.enqueue_work_order(work_orders.first)
-      subject.enqueue_work_order(work_orders.last)
-      redis.lrange(sender, 0, -1).should == work_orders.map {|m| Oj.dump(default_headers.merge({'payload' => m})) }
+      subject.enqueue_work_order(work_orders.first) {}
+      subject.enqueue_work_order(work_orders.last) {}
+      redis.lrange(sender, 0, -1).should == work_orders.map {|m| WorkerRoulette.dump(default_headers.merge({'payload' => m})) }
     end
 
     it "should enqueue_work_order an array of work_orders without headers in the sender's slot in the switchboard" do
       subject.enqueue_work_order_without_headers(work_orders)
-      redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders)]
+      redis.lrange(sender, 0, -1).should == [WorkerRoulette.dump(work_orders)]
     end
 
     it "should enqueue_work_order an array of work_orders with default headers in the sender's slot in the switchboard" do
@@ -51,26 +46,24 @@ describe WorkerRoulette do
       extra_headers = {'foo' => 'bars'}
       subject.enqueue_work_order(work_orders, extra_headers)
       work_orders_with_headers['headers'].merge!(extra_headers)
-      redis.lrange(sender, 0, -1).should == [Oj.dump(work_orders_with_headers)]
+      redis.lrange(sender, 0, -1).should == [WorkerRoulette.dump(work_orders_with_headers)]
     end
 
     it "should post the sender's id to the job board with an order number" do
       subject.enqueue_work_order(work_orders.first)
-      subject.enqueue_work_order(work_orders.last)
-      redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [[sender.to_s, work_orders.length.to_f]]
+      WorkerRoulette.foreman('other_forman').enqueue_work_order(work_orders.last)
+      redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [[sender, 1.0], ["other_forman", 2.0]]
     end
 
-    it "should post the sender_id and work_orders transactionally" do
-      Redis.any_instance.should_receive(:multi)
-      subject.enqueue_work_order(work_orders.first)
-    end
-
-    it "should generate sequential order numbers" do
+    it "should generate a monotically increasing score for senders not on the job board, but not for senders already there" do
+      other_forman = WorkerRoulette.foreman('other_forman')
       redis.get(subject.counter_key).should == nil
       subject.enqueue_work_order(work_orders.first)
       redis.get(subject.counter_key).should == "1"
       subject.enqueue_work_order(work_orders.last)
-      redis.get(subject.counter_key).should == "2"
+      redis.get(subject.counter_key).should == "1"
+      other_forman.enqueue_work_order(work_orders.last)
+      redis.get(other_forman.counter_key).should == "2"
     end
 
     it "should publish a notification that a new job is ready" do
@@ -104,11 +97,6 @@ describe WorkerRoulette do
       subject.sender.should == sender
     end
 
-    it "should be injected with a redis client so it can do its work" do
-      Redis.any_instance.should_receive(:lrange).and_call_original
-      subject.work_orders!
-    end
-
     it "should drain one set of work_orders from the sender's slot in the switchboard" do
       subject.work_orders!.should == [work_orders_with_headers]
       subject.work_orders!.should == []
@@ -130,11 +118,6 @@ describe WorkerRoulette do
       redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
       subject.work_orders!
       redis.zrange(subject.job_board_key, 0, -1).should == [most_recent_sender]
-    end
-
-    it "should get the sender and work_order list transactionally" do
-      Redis.any_instance.should_receive(:multi).and_call_original
-      subject.work_orders!
     end
 
     it "should get the work_orders from the next queue when a new job is ready" do
@@ -167,9 +150,6 @@ describe WorkerRoulette do
         work.to_s.should_not match("evil")
       end
     end
-
-    it "should checkout a readlock for a queue and put it back when its done processing; lock should expire after 5 minutes?"
-    it "should eves drop on the job board"
 
     context "Failure" do
       it "should not put the sender_id and work_orders back if processing fails bc new work_orders may have been processed while that process failed" do; end
