@@ -107,7 +107,7 @@ describe WorkerRoulette do
     it "should be working on behalf of a sender" do
       foreman.enqueue_work_order(work_orders) do
         subject.work_orders! do |r|
-          subject.sender.should == sender
+          subject.last_sender.should == sender
           done
         end
       end
@@ -142,7 +142,7 @@ describe WorkerRoulette do
       publish = proc {foreman.enqueue_work_order(work_orders)}
 
       subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
-        subject.sender.should == "katie_80"
+        subject.last_sender.should == "katie_80"
         redis_work_orders.should == [work_orders_with_headers]
         done
       end

@@ -10,7 +10,7 @@ size_of_connection_pool = 100
 
 #Start it up
 #the config takes size for the connection pool size, evented to specify which api to use, then the normal redis config
-WorkerRoulette.start(size: size_of_connection_pool, evented: false, host: 'localhost', timeout: 5, db: 1)
+WorkerRoulette.start(size: size_of_connection_pool, evented: true, host: 'localhost', timeout: 5, db: 1)
 
 #Enqueue some work
 sender_id = :shady

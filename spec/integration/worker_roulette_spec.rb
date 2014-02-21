@@ -92,9 +92,9 @@ describe WorkerRoulette do
       foreman.enqueue_work_order(work_orders)
     end
 
-    it "should be working on behalf of a sender" do
+    it "should have worked on behalf of a sender" do
       subject.work_orders!
-      subject.sender.should == sender
+      subject.last_sender.should == sender
     end
 
     it "should drain one set of work_orders from the sender's slot in the switchboard" do

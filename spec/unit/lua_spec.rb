@@ -11,6 +11,7 @@ module WorkerRoulette
     before do
       Lua.clear_cache!
       redis.script(:flush)
+      redis.flushdb
     end
 
     it "should load and call a lua script" do
