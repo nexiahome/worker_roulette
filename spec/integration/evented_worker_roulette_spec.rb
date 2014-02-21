@@ -138,15 +138,14 @@ describe WorkerRoulette do
     end
 
     it "should get the work_orders from the next queue when a new job is ready" do
-      subject.should_receive(:work_orders!).and_call_original
+      subject.should_receive(:work_orders!).twice.and_call_original
       publish = proc {foreman.enqueue_work_order(work_orders)}
 
       subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
-        subject.last_sender.should == "katie_80"
-        redis_work_orders.should == [work_orders_with_headers]
+        redis_work_orders.should   == [work_orders_with_headers]
+        subject.last_sender.should == nil
         done
       end
-
     end
 
     it "should publish and subscribe on custom channels" do
@@ -162,8 +161,8 @@ describe WorkerRoulette do
       good_publish = proc {good_foreman.enqueue_work_order('some old fashion work')}
       bad_publish  = proc {bad_foreman.enqueue_work_order('evil biddings you should not carry out')}
 
-      tradesman.should_receive(:work_orders!).and_call_original
-      evil_tradesman.should_receive(:work_orders!).and_call_original
+      tradesman.should_receive(:work_orders!).twice.and_call_original
+      evil_tradesman.should_receive(:work_orders!).twice.and_call_original
 
       #They are double subscribing; is it possible that it is the connection pool?
 

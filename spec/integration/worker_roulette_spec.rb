@@ -92,9 +92,15 @@ describe WorkerRoulette do
       foreman.enqueue_work_order(work_orders)
     end
 
-    it "should have worked on behalf of a sender" do
-      subject.work_orders!
+    it "should have a last sender if it found messages" do
+      subject.work_orders!.length.should == 1
       subject.last_sender.should == sender
+    end
+
+    it "should not have a last sender if it found no messages" do
+      subject.work_orders!.length.should == 1
+      subject.work_orders!.length.should == 0
+      subject.last_sender.should == nil
     end
 
     it "should drain one set of work_orders from the sender's slot in the switchboard" do
@@ -122,18 +128,19 @@ describe WorkerRoulette do
 
     it "should get the work_orders from the next queue when a new job is ready" do
       subject.work_orders!
-      subject.should_receive(:work_orders!).and_call_original
+      subject.should_receive(:work_orders!).twice.and_call_original
 
       publisher = -> {foreman.enqueue_work_order(work_orders); subject.unsubscribe}
 
       subject.wait_for_work_orders(publisher) do |redis_work_orders|
         redis_work_orders.should == [work_orders_with_headers]
+        subject.last_sender.should == nil
       end
     end
 
     it "should publish and subscribe on custom channels" do
       tradesman         = WorkerRoulette.tradesman('good_channel')
-      tradesman.should_receive(:work_orders!).and_call_original
+      tradesman.should_receive(:work_orders!).twice.and_call_original
 
       good_foreman      = WorkerRoulette.foreman('foreman', 'good_channel')
       bad_foreman       = WorkerRoulette.foreman('foreman', 'bad_channel')
@@ -148,6 +155,7 @@ describe WorkerRoulette do
       tradesman.wait_for_work_orders(publish) do |work|
         work.to_s.should match("some old fashion work")
         work.to_s.should_not match("evil")
+        tradesman.last_sender.should == nil
       end
     end
 

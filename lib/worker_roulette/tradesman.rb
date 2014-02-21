@@ -12,7 +12,7 @@ module WorkerRoulette
       @pubsub_pool.with do |redis|
         redis.subscribe(@channel) do |on|
           on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
-          on.message   {self.unsubscribe; block.call(work_orders!) if block}
+          on.message   {block.call(work_orders! + work_orders!) if block}
         end
       end
     end
@@ -50,10 +50,9 @@ module WorkerRoulette
 
           if (not sender_key) or (sender_key == "") then
             sender_key = redis.call('ZRANGE', job_board_key, 0, 0)[1]
-          end
-
-          if (not sender_key) or (sender_key == "") then
-            return {}
+            if (not sender_key) or (sender_key == "") then
+              return {}
+            end
           end
 
           local lock_key = 'L*:' .. sender_key

@@ -41,25 +41,34 @@ module WorkerRoulette
        subject_two.work_orders!.first['headers']['sender'].should == 'number_two'
     end
 
-    it "should release its last lock when it asks for its next work order from another sender" do
+    it "should release its previous lock when it asks for work from another sender" do
       number_two.enqueue_work_order(work_orders)    #unlocked
       subject.last_sender.should == sender
       subject.work_orders!.first['headers']['sender'].should == 'number_two'
       redis.get(lock_key).should == nil
     end
 
-    it "should not release its lock when it asks for its next work order from the same sender" do
+    it "should not release its lock when it asks for work from the same sender" do
       foreman.enqueue_work_order(work_orders)    #locked
       subject.work_orders!.should == [work_orders_with_headers]
       subject.last_sender.should == sender
+
+      foreman.enqueue_work_order(work_orders)    #locked
+      subject.work_orders!.should == [work_orders_with_headers]
+      subject.last_sender.should == sender
+
       redis.get(lock_key).should_not == nil
     end
 
-    it "should not take out another lock if there is no work to do" do
+    it "should release its previous lock if there is no work to do from the same sender" do
       foreman.enqueue_work_order(work_orders)    #locked
       subject.work_orders!.should == [work_orders_with_headers]
       subject.work_orders!.should == []
       redis.get(lock_key).should == nil
+    end
+
+    xit "pubsub should clean up one contention orremove the lock on the same sender queue automaticly" do
+
     end
   end
 end
