@@ -45,23 +45,24 @@ module WorkerRoulette
 
         local work_order        = ARGV[1]
         local job_notification  = ARGV[2]
+        local redis_call        = redis.call
+        local zscore            = 'ZSCORE'
+        local incr              = 'INCR'
+        local zadd              = 'ZADD'
+        local rpush             = 'RPUSH'
+        local publish           = 'PUBLISH'
 
         local function enqueue_work_orders(work_order, job_notification)
-          local result    = sender_key .. ' updated'
-          local sender_is_on_job_board = redis.call('ZSCORE', job_board_key, sender_key)
-
-          if (sender_is_on_job_board == false) then
-            local count     = redis.call('INCR', counter_key)
-            local job_added = redis.call('ZADD',job_board_key, count, sender_key)
-            result          = sender_key .. ' added'
+          if (redis_call(zscore, job_board_key, sender_key) == false) then
+            local count     = redis_call(incr, counter_key)
+            redis_call(zadd, job_board_key, count, sender_key)
           end
 
-          local work_added          = redis.call('RPUSH',sender_key, work_order)
-          local job_board_update    = redis.call('PUBLISH', channel, job_notification)
-          return result
+          redis_call(rpush,sender_key, work_order)
+          redis_call(publish, channel, job_notification)
         end
 
-        return enqueue_work_orders(work_order, job_notification)
+        enqueue_work_orders(work_order, job_notification)
       HERE
     end
   end

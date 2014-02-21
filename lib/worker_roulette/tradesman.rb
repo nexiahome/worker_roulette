@@ -38,47 +38,56 @@ module WorkerRoulette
   private
     def self.lua_drain_work_orders
       <<-HERE
+        local empty_string      = ""
         local job_board_key     = KEYS[1]
-        local last_sender_key   = KEYS[2]
-        local sender_key        = ARGV[1]
+        local last_sender_key   = KEYS[2] or empty_string
+        local sender_key        = ARGV[1] or empty_string
+        local redis_call        = redis.call
+        local lock_key_prefix   = "L*:"
+        local lock_value        = "L"
+        local ex                = "EX"
+        local nx                = "NX"
+        local get               = "GET"
+        local set               = "SET"
+        local del               = "DEL"
+        local zrank             = "ZRANK"
+        local zrange            = "ZRANGE"
 
         local function drain_work_orders(job_board_key, last_sender_key, sender_key)
-          if last_sender_key ~= "" and last_sender_key ~= nil then
-            local last_sender_lock_key = 'L*:' .. last_sender_key
-            redis.call('DEL', last_sender_lock_key)
+          if last_sender_key ~= empty_string then
+            local last_sender_lock_key = lock_key_prefix .. last_sender_key
+            redis_call(del, last_sender_lock_key)
           end
 
-          if (not sender_key) or (sender_key == "") then
-            sender_key = redis.call('ZRANGE', job_board_key, 0, 0)[1]
-            if (not sender_key) or (sender_key == "") then
+          if sender_key == empty_string then
+            sender_key = redis_call(zrange, job_board_key, 0, 0)[1] or empty_string
+            if sender_key == empty_string then
               return {}
             end
           end
 
-          local lock_key = 'L*:' .. sender_key
-          local locked   = (redis.call('GET', lock_key) == 'L')
+          local lock_key = lock_key_prefix .. sender_key
+          local locked   = (redis_call(get, lock_key) == lock_value)
 
           if not locked then
-            local results = {}
-            results[1] = sender_key
-            results[2] = redis.call('LRANGE', sender_key, 0, -1)
-            redis.call('DEL', sender_key)
-            redis.call('ZREM', job_board_key, sender_key)
-            redis.call('SET', lock_key, 'L', 'EX', 1, 'NX')
+            local results = {sender_key, redis_call('LRANGE', sender_key, 0, -1)}
+            redis_call(del, sender_key)
+            redis_call('ZREM', job_board_key, sender_key)
+            redis_call(set, lock_key, lock_value, ex, 1, nx)
             return results
           else
-            local sender_index    = redis.call('ZRANK', job_board_key, sender_key)
+            local sender_index    = redis_call(zrank, job_board_key, sender_key)
             local next_index      = sender_index + 1
-            local next_sender_key = redis.call('ZRANGE', job_board_key, next_index, next_index)[1]
+            local next_sender_key = redis_call(zrange, job_board_key, next_index, next_index)[1]
             if next_sender_key then
-              return drain_work_orders(job_board_key, "", next_sender_key)
+              return drain_work_orders(job_board_key, empty_string, next_sender_key)
             else
               return {}
             end
           end
         end
 
-        return drain_work_orders(job_board_key, last_sender_key, "")
+        return drain_work_orders(job_board_key, last_sender_key, empty_string)
       HERE
     end
   end

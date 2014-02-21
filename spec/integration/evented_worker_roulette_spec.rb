@@ -25,7 +25,6 @@ describe WorkerRoulette do
       foreman      = WorkerRoulette.a_foreman('foreman')
       foreman.enqueue_work_order('some old fashion work') do |redis_response, stuff|
         called = true
-        redis_response.should == 'foreman added'
       end
       done(0.1) {called.should == true}
     end
