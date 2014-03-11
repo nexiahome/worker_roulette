@@ -50,11 +50,11 @@ module WorkerRoulette
   end
 
   def self.pool_size
-    @pool_config[:size]
+    (@pool_config ||= {})[:size]
   end
 
   def self.redis_config
-    @redis_config.dup
+    (@redis_config ||= {}).dup
   end
 
   def self.dump(obj)
