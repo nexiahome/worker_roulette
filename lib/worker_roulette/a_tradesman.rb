@@ -6,7 +6,8 @@ module WorkerRoulette
     def wait_for_work_orders(on_subscribe_callback = nil, &on_message_callback)
       @redis_pubsub ||= WorkerRoulette.new_redis_pubsub #cannot use connection pool bc redis expects each obj to own its own pubsub connection for the life of the subscription
       @redis_pubsub.on(:subscribe) {|channel, subscription_count| on_subscribe_callback.call(channel, subscription_count) if on_subscribe_callback}
-      @redis_pubsub.on(:message)   {|channel, message| set_timer(on_message_callback); get_messages(message, channel, on_message_callback)}
+      @redis_pubsub.on(:message)   {|channel, message| get_messages(message, channel, on_message_callback)}
+      set_timer(on_message_callback);
       @redis_pubsub.subscribe(@channel)
     end
 
@@ -36,8 +37,7 @@ module WorkerRoulette
     end
 
     def set_timer(on_message_callback)
-      return unless on_message_callback
-      @timer && @timer.cancel
+      return if (@timer || !on_message_callback)
       @timer = EM::PeriodicTimer.new(rand(20..25)) do
         work_orders! {|work_orders| on_message_callback.call(work_orders, nil, nil)}
       end
