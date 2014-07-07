@@ -17,22 +17,22 @@ module WorkerRoulette
     it "should load and call a lua script" do
       lua_script = 'return redis.call("SET", KEYS[1], ARGV[1])'
       Lua.call(lua_script, ['foo'], ['daddy']) do |result|
-        Lua.cache.keys.first.should == lua_script
-        Lua.cache.values.first.should == Digest::SHA1.hexdigest(lua_script)
-        result.should == "OK"
+        expect(Lua.cache.keys.first).to eq(lua_script)
+        expect(Lua.cache.values.first).to eq(Digest::SHA1.hexdigest(lua_script))
+        expect(result).to eq("OK")
         done
       end
     end
 
     it "should send a sha instead of a script once the script has been cached" do
       lua_script = 'return KEYS'
-      Lua.should_receive(:eval).and_call_original
+      expect(Lua).to receive(:eval).and_call_original
 
       Lua.call(lua_script) do |result|
+        expect(Lua).not_to receive(:eval)
 
-        Lua.should_not_receive(:eval)
-        Lua.call(lua_script) do |result|
-          result.should == []
+        Lua.call(lua_script) do |inner_result|
+          expect(inner_result).to be_empty
           done
         end
       end

@@ -20,19 +20,20 @@ describe WorkerRoulette do
   context "Evented Foreman" do
     let(:subject) {WorkerRoulette.a_foreman(sender)}
 
-    it "should enqueue work" do
+    it "enqueues work" do
       called = false
-      foreman      = WorkerRoulette.a_foreman('foreman')
+      foreman = WorkerRoulette.a_foreman('foreman')
       foreman.enqueue_work_order('some old fashion work') do |redis_response, stuff|
         called = true
       end
-      done(0.1) {called.should == true}
+      done(0.1) { expect(called).to be_truthy }
     end
 
     it "should enqueue_work_order two work_orders in the sender's slot in the job board" do
       subject.enqueue_work_order(work_orders.first) do
         subject.enqueue_work_order(work_orders.last) do
-          redis.lrange(sender, 0, -1).should == work_orders.map {|m| WorkerRoulette.dump(default_headers.merge({'payload' => m})) }
+          expected = work_orders.map { |m| WorkerRoulette.dump(default_headers.merge({'payload' => m})) }
+          expect(redis.lrange(sender, 0, -1)).to eq(expected)
           done
         end
       end
@@ -40,14 +41,14 @@ describe WorkerRoulette do
 
     it "should enqueue_work_order an array of work_orders without headers in the sender's slot in the job board" do
       subject.enqueue_work_order_without_headers(work_orders) do
-        redis.lrange(sender, 0, -1).should == [WorkerRoulette.dump(work_orders)]
+        expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders)])
         done
       end
     end
 
     it "should enqueue_work_order an array of work_orders with default headers in the sender's slot in the job board" do
       subject.enqueue_work_order(work_orders) do
-        redis.lrange(sender, 0, -1).should == jsonized_work_orders_with_headers
+        expect(redis.lrange(sender, 0, -1)).to eq(jsonized_work_orders_with_headers)
         done
       end
     end
@@ -56,7 +57,7 @@ describe WorkerRoulette do
       extra_headers = {'foo' => 'bars'}
       subject.enqueue_work_order(work_orders, extra_headers) do
         work_orders_with_headers['headers'].merge!(extra_headers)
-        redis.lrange(sender, 0, -1).should == [WorkerRoulette.dump(work_orders_with_headers)]
+        expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders_with_headers)])
         done
       end
     end
@@ -66,7 +67,7 @@ describe WorkerRoulette do
       first_foreman.enqueue_work_order('foo') do
         subject.enqueue_work_order(work_orders.first) do
           subject.enqueue_work_order(work_orders.last) do
-            redis.zrange(subject.job_board_key, 0, -1, with_scores: true).should == [["first_foreman", 1.0], ["katie_80", 2.0]]
+            expect(redis.zrange(subject.job_board_key, 0, -1, with_scores: true)).to eq([["first_foreman", 1.0], ["katie_80", 2.0]])
             done
           end
         end
@@ -75,13 +76,13 @@ describe WorkerRoulette do
 
     it "should generate a monotically increasing score for senders not on the job board, but not for senders already there" do
       first_foreman = WorkerRoulette.a_foreman('first_foreman')
-      redis.get(subject.counter_key).should == nil
+      expect(redis.get(subject.counter_key)).to be_nil
       first_foreman.enqueue_work_order(work_orders.first) do
-        redis.get(subject.counter_key).should == "1"
+        expect(redis.get(subject.counter_key)).to eq("1")
         first_foreman.enqueue_work_order(work_orders.last) do
-          redis.get(subject.counter_key).should == "1"
+          expect(redis.get(subject.counter_key)).to eq("1")
           subject.enqueue_work_order(work_orders.first) do
-            redis.get(subject.counter_key).should == "2"
+            expect(redis.get(subject.counter_key)).to eq("2")
             done
           end
         end
@@ -93,7 +94,7 @@ describe WorkerRoulette do
       subscriber = WorkerRoulette.new_redis_pubsub
       subscriber.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |message|
         subscriber.unsubscribe(WorkerRoulette::JOB_NOTIFICATIONS)
-        message.should == WorkerRoulette::JOB_NOTIFICATIONS
+        expect(message).to eq(WorkerRoulette::JOB_NOTIFICATIONS)
         done
       end.callback { subject.enqueue_work_order(work_orders) }
     end
@@ -106,7 +107,7 @@ describe WorkerRoulette do
     it "should be working on behalf of a sender" do
       foreman.enqueue_work_order(work_orders) do
         subject.work_orders! do |r|
-          subject.last_sender.should == sender
+          expect(subject.last_sender).to eq(sender)
           done
         end
       end
@@ -116,9 +117,9 @@ describe WorkerRoulette do
     it "should drain one set of work_orders from the sender's slot in the job board" do
       foreman.enqueue_work_order(work_orders) do
         subject.work_orders! do |r|
-          r.should == [work_orders_with_headers]
-          subject.work_orders! do |r| r.should == []
-            subject.work_orders! {|r| r.should == []; done} #does not throw an error if queue is alreay empty
+          expect(r).to eq([work_orders_with_headers])
+          subject.work_orders! do |r| expect(r).to be_empty
+          subject.work_orders! {|r| expect(r).to be_empty; done} #does not throw an error if queue is alreay empty
           end
         end
       end
@@ -130,19 +131,19 @@ describe WorkerRoulette do
         most_recent_sender = 'most_recent_sender'
         most_recent_foreman = WorkerRoulette.a_foreman(most_recent_sender)
         most_recent_foreman.enqueue_work_order(work_orders) do
-          redis.zrange(subject.job_board_key, 0, -1).should == [oldest_sender, most_recent_sender]
-          subject.work_orders! { redis.zrange(subject.job_board_key, 0, -1).should == [most_recent_sender]; done }
+          expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([oldest_sender, most_recent_sender])
+          subject.work_orders! { expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([most_recent_sender]); done }
         end
       end
     end
 
     it "should get the work_orders from the next queue when a new job is ready" do
-      subject.should_receive(:work_orders!).twice.and_call_original
+      expect(subject).to receive(:work_orders!).twice.and_call_original
       publish = proc {foreman.enqueue_work_order(work_orders)}
 
       subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
-        redis_work_orders.should   == [work_orders_with_headers]
-        subject.last_sender.should == nil
+        expect(redis_work_orders).to eq([work_orders_with_headers])
+        expect(subject.last_sender).to be_nil
         done
       end
     end
@@ -160,19 +161,19 @@ describe WorkerRoulette do
       good_publish = proc {good_foreman.enqueue_work_order('some old fashion work')}
       bad_publish  = proc {bad_foreman.enqueue_work_order('evil biddings you should not carry out')}
 
-      tradesman.should_receive(:work_orders!).twice.and_call_original
-      evil_tradesman.should_receive(:work_orders!).twice.and_call_original
+      expect(tradesman).to receive(:work_orders!).twice.and_call_original
+      expect(evil_tradesman).to receive(:work_orders!).twice.and_call_original
 
       #They are double subscribing; is it possible that it is the connection pool?
 
       tradesman.wait_for_work_orders(good_publish) do |good_work|
-        good_work.to_s.should match("old fashion")
-        good_work.to_s.should_not match("evil")
+        expect(good_work.to_s).to match("old fashion")
+        expect(good_work.to_s).not_to match("evil")
       end
 
       evil_tradesman.wait_for_work_orders(bad_publish) do |bad_work|
-        bad_work.to_s.should_not match("old fashion")
-        bad_work.to_s.should match("evil")
+        expect(bad_work.to_s).not_to match("old fashion")
+        expect(bad_work.to_s).to match("evil")
       end
 
       done(0.2)
@@ -183,11 +184,11 @@ describe WorkerRoulette do
       subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
         subject.unsubscribe {done}
       end
-      EM::Hiredis::PubsubClient.any_instance.should_receive(:close_connection).and_call_original
+      expect_any_instance_of(EM::Hiredis::PubsubClient).to receive(:close_connection).and_call_original
     end
 
     it "should periodically (random time between 20 and 25 seconds?) poll the job board for new work, in case it missed a notification" do
-      EM::PeriodicTimer.should_receive(:new) {|time| time.should be_within(2.5).of(22.5)}
+      expect(EM::PeriodicTimer).to receive(:new) {|time| expect(time).to be_within(2.5).of(22.5)}
       publish = proc {foreman.enqueue_work_order('foo')}
       subject.wait_for_work_orders(publish) {done}
     end
@@ -195,38 +196,37 @@ describe WorkerRoulette do
     xit "should cancel the old timer when the on_message callback is called" do
       publish = proc {foreman.enqueue_work_order('foo')}
       subject.wait_for_work_orders(publish) do
-        subject.send(:timer).should_receive(:cancel).and_call_original
+        expect(subject.send(:timer)).to receive(:cancel).and_call_original
         done
       end
     end
 
     it "should pull off work orders for more than one sender" do
-      tradesman         = WorkerRoulette.a_tradesman('good_channel')
+      tradesman = WorkerRoulette.a_tradesman('good_channel')
 
-      good_foreman      = WorkerRoulette.a_foreman('good_foreman', 'good_channel')
-      lazy_foreman      = WorkerRoulette.a_foreman('lazy_foreman', 'good_channel')
+      good_foreman = WorkerRoulette.a_foreman('good_foreman', 'good_channel')
+      lazy_foreman = WorkerRoulette.a_foreman('lazy_foreman', 'good_channel')
 
       got_good = false
       got_lazy  = false
       good_foreman.enqueue_work_order('do good work') do
         tradesman.work_orders! do |r|
           got_good = true
-          r.first['payload'].should == ('do good work')
+          expect(r.first['payload']).to eq('do good work')
         end
       end
       lazy_foreman.enqueue_work_order('just get it done') do
         tradesman.work_orders! do |r|
           got_lazy = true
-          r.first['payload'].should == ('just get it done')
+          expect(r.first['payload']).to eq('just get it done')
         end
       end
 
-      done(0.2) {(got_good && got_lazy).should == true}
+      done(0.2) {expect(got_good && got_lazy).to eq(true)}
     end
   end
 
   xit "should return a hash with a string in the payload if OJ cannot parse the json" do
-
   end
 
   context "Failure" do
