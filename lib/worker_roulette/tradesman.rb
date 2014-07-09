@@ -1,43 +1,8 @@
 module WorkerRoulette
   class Tradesman
     attr_reader :last_sender
-    def initialize(client_pool, pubsub_pool, namespace = nil)
-      @client_pool = client_pool
-      @pubsub_pool = pubsub_pool
-      @namespace   = namespace
-      @channel     = namespace || WorkerRoulette::JOB_NOTIFICATIONS
-    end
 
-    def wait_for_work_orders(on_subscribe_callback = nil, &block)
-      @pubsub_pool.with do |redis|
-        redis.subscribe(@channel) do |on|
-          on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
-          on.message   {block.call(work_orders! + work_orders!) if block}
-        end
-      end
-    end
-
-    def work_orders!(&callback)
-      Lua.call(self.class.lua_drain_work_orders, [job_board_key, @last_sender], [nil]) do |results|
-        results ||= []
-        @last_sender = (results.first || '').split(':').first
-        work = (results[1] || []).map {|work_order| WorkerRoulette.load(work_order)}
-        callback.call work if callback
-        work
-      end
-    end
-
-    def unsubscribe
-      @pubsub_pool.with {|redis| redis.unsubscribe(@channel)}
-    end
-
-    def job_board_key
-      @job_board_key ||= WorkerRoulette.job_board_key(@namespace)
-    end
-
-  private
-    def self.lua_drain_work_orders
-      <<-HERE
+    LUA_DRAIN_WORK_ORDERS = <<-HERE
         local empty_string      = ""
         local job_board_key     = KEYS[1]
         local last_sender_key   = KEYS[2] or empty_string
@@ -88,7 +53,46 @@ module WorkerRoulette
         end
 
         return drain_work_orders(job_board_key, last_sender_key, empty_string)
-      HERE
+    HERE
+
+    def initialize(client_pool, pubsub_pool, namespace = nil)
+      @client_pool = client_pool
+      @pubsub_pool = pubsub_pool
+      @namespace   = namespace
+      @channel     = namespace || WorkerRoulette::JOB_NOTIFICATIONS
+    end
+
+    def wait_for_work_orders(on_subscribe_callback = nil, &block)
+      @pubsub_pool.with do |redis|
+        redis.subscribe(@channel) do |on|
+          on.subscribe {on_subscribe_callback.call if on_subscribe_callback}
+          on.message   {block.call(work_orders! + work_orders!) if block}
+        end
+      end
+    end
+
+    def work_orders!(&callback)
+      Lua.call(self.class.lua_drain_work_orders, [job_board_key, @last_sender], [nil]) do |results|
+        results ||= []
+        @last_sender = (results.first || '').split(':').first
+        work = (results[1] || []).map {|work_order| WorkerRoulette.load(work_order)}
+        callback.call work if callback
+        work
+      end
+    end
+
+    def unsubscribe
+      @pubsub_pool.with {|redis| redis.unsubscribe(@channel)}
+    end
+
+    def job_board_key
+      @job_board_key ||= WorkerRoulette.job_board_key(@namespace)
+    end
+
+    private
+
+    def self.lua_drain_work_orders
+      LUA_DRAIN_WORK_ORDERS
     end
   end
 end
