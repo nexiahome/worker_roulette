@@ -18,3 +18,4 @@ tmp
 tmp/*
 coverage/*
 vendor/bundle
+results.xml
