@@ -193,7 +193,7 @@ describe WorkerRoulette do
       subject.wait_for_work_orders(publish) {done}
     end
 
-    xit "should cancel the old timer when the on_message callback is called" do
+    pending "cancels the old timer when the on_message callback is called" do
       publish = proc {foreman.enqueue_work_order('foo')}
       subject.wait_for_work_orders(publish) do
         expect(subject.send(:timer)).to receive(:cancel).and_call_original
@@ -226,8 +226,7 @@ describe WorkerRoulette do
     end
   end
 
-  xit "should return a hash with a string in the payload if OJ cannot parse the json" do
-  end
+  pending "should return a hash with a string in the payload if OJ cannot parse the json"
 
   context "Failure" do
     it "should not put the sender_id and work_orders back if processing fails bc new work_orders may have been processed while that process failed" do; done; end

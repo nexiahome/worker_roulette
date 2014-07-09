@@ -67,8 +67,6 @@ module WorkerRoulette
       expect(redis.get(lock_key)).to be_nil
     end
 
-    xit "pubsub should clean up one contention orremove the lock on the same sender queue automaticly" do
-
-    end
+    pending "pubsub should clean up one contention or remove the lock on the same sender queue automaticly"
   end
 end
