@@ -1,6 +1,8 @@
 require_relative './tradesman'
 module WorkerRoulette
   class ATradesman < Tradesman
+    attr_reader :timer
+
     def wait_for_work_orders(on_subscribe_callback = nil, &on_message_callback)
       @redis_pubsub ||= WorkerRoulette.new_redis_pubsub #cannot use connection pool bc redis expects each obj to own its own pubsub connection for the life of the subscription
       @redis_pubsub.on(:subscribe) {|channel, subscription_count| on_subscribe_callback.call(channel, subscription_count) if on_subscribe_callback}
@@ -22,8 +24,8 @@ module WorkerRoulette
       end
     end
 
-  private
-    attr_reader :timer
+    private
+
     def get_messages(message, channel, on_message_callback)
       return unless on_message_callback
       work_orders! do |work_orders_1|

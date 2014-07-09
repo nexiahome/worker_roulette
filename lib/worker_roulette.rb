@@ -13,7 +13,7 @@ module WorkerRoulette
   JOB_NOTIFICATIONS = "new_job_ready"
 
   def self.start(config = {})
-    @redis_config               = {host: 'localhost', port: 6379, db: 14, driver: :hiredis, timeout: 5, evented: false, pool_size: 10}.merge(config)
+    @redis_config               = { host: 'localhost', port: 6379, db: 14, driver: :hiredis, timeout: 5, evented: false, pool_size: 10 }.merge(config)
     @pool_config                = Hash[size: @redis_config.delete(:pool_size), timeout: @redis_config.delete(:timeout)]
     @evented                    = @redis_config.delete(:evented)
 
@@ -80,7 +80,9 @@ module WorkerRoulette
   def self.counter_key(sender, namespace = nil)
     "#{namespace + ':' if namespace}counter_key"
   end
-private
+
+  private
+
   def self.new_redis
     if @evented
       require 'eventmachine'
@@ -93,7 +95,7 @@ private
 
   def self.new_redis_pubsub
     if @evented
-     new_redis.pubsub
+      new_redis.pubsub
     else
       new_redis
     end
