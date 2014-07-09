@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.version       = WorkerRoulette::VERSION
   spec.authors       = ['Paul Saieg']
   spec.email         = ['classicist@gmail.com']
-  spec.description   = %q{Write a gem description}
-  spec.summary       = %q{Write a gem summary}
+  spec.description   = %q{Pub Sub Queue for Redis that ensures ordered processing}
+  spec.summary       = %q{Pub Sub Queue for Redis that ensures ordered processing}
   spec.homepage      = 'https://github.com/nexiahome/worker_roulette'
 
   spec.files         = `git ls-files`.split($/)
