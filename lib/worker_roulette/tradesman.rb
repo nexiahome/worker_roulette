@@ -17,6 +17,7 @@ module WorkerRoulette
         local del               = "DEL"
         local zrank             = "ZRANK"
         local zrange            = "ZRANGE"
+        local zrem              = "ZREM"
 
         local function drain_work_orders(job_board_key, last_sender_key, sender_key)
           if last_sender_key ~= empty_string then
@@ -37,7 +38,7 @@ module WorkerRoulette
           if not locked then
             local results = {sender_key, redis_call('LRANGE', sender_key, 0, -1)}
             redis_call(del, sender_key)
-            redis_call('ZREM', job_board_key, sender_key)
+            redis_call(zrem, job_board_key, sender_key)
             redis_call(set, lock_key, lock_value, ex, 1, nx)
             return results
           else
@@ -72,12 +73,18 @@ module WorkerRoulette
     end
 
     def work_orders!(&callback)
-      Lua.call(self.class.lua_drain_work_orders, [job_board_key, @last_sender], [nil]) do |results|
-        results ||= []
-        @last_sender = (results.first || '').split(':').first
-        work = (results[1] || []).map {|work_order| WorkerRoulette.load(work_order)}
-        callback.call work if callback
-        work
+      Lua.call(LUA_DRAIN_WORK_ORDERS, [job_board_key, @last_sender], [nil]) do |results|
+        if results
+          first_result  = results[0]
+          second_result = results[1]
+          @last_sender  = first_result  ? first_result.split(':').first : nil
+          work          = second_result ? second_result.map {|work_order| WorkerRoulette.load(work_order)} : []
+          callback.call work if callback
+          work
+        else
+          callback.call work if callback
+          []
+        end
       end
     end
 
@@ -87,12 +94,6 @@ module WorkerRoulette
 
     def job_board_key
       @job_board_key ||= WorkerRoulette.job_board_key(@namespace)
-    end
-
-    private
-
-    def self.lua_drain_work_orders
-      LUA_DRAIN_WORK_ORDERS
     end
   end
 end

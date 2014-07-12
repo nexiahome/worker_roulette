@@ -43,7 +43,7 @@ module WorkerRoulette
     end
 
     def enqueue_work_order_without_headers(work_order, &callback)
-      Lua.call(self.class.lua_enqueue_work_orders, [counter_key, job_board_key, sender_key, @channel],
+      Lua.call(LUA_ENQUEUE_WORK_ORDERS, [counter_key, job_board_key, sender_key, @channel],
                [WorkerRoulette.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
     end
 
@@ -63,10 +63,6 @@ module WorkerRoulette
 
     def default_headers
       Hash['sender' => sender]
-    end
-
-    def self.lua_enqueue_work_orders
-      LUA_ENQUEUE_WORK_ORDERS
     end
   end
 end
