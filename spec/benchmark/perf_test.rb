@@ -41,7 +41,6 @@ WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 times = Benchmark.bm do |x|
   x.report "#{ITERATIONS * 2} ASync Api Pubsub Read/Writes" do
     EM.run do
-      WorkerRoulette.start(evented: true)
       @processed = 0
       @total     = 0
       WorkerRoulette.start(evented: true)
@@ -49,17 +48,18 @@ times = Benchmark.bm do |x|
       @total = 0
       @tradesman = WorkerRoulette.a_tradesman
       on_subscribe = ->(*args) do
+        @start = Time.now
         ITERATIONS.times do |iteration|
           sender = 'sender_' + iteration.to_s
           foreman = WorkerRoulette.a_foreman(sender)
           foreman.enqueue_work_order(work_order)
         end
       end
-      @tradesman.wait_for_work_orders(on_subscribe) {@processed += 1; EM.stop if @processed == (ITERATIONS - 1)}
+      @tradesman.wait_for_work_orders(on_subscribe) {@processed += 1; ((@stop = Time.now) && EM.add_timer(1){EM.stop}) if @processed == (ITERATIONS - 1)}
     end
   end
 end
-puts "#{ITERATIONS * 2 / times.first.real} ASync Api Pubsub Read/Writes per second"
+puts "#{ITERATIONS * 2 / (@stop - @start)} ASync Api Pubsub Read/Writes per second"
 puts "#################"
 puts
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}

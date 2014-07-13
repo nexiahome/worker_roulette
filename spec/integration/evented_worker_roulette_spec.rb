@@ -138,13 +138,13 @@ describe WorkerRoulette do
     end
 
     it "should get the work_orders from the next queue when a new job is ready" do
-      expect(subject).to receive(:work_orders!).twice.and_call_original
+      expect(subject).to receive(:work_orders!).exactly(3).times.and_call_original
       publish = proc {foreman.enqueue_work_order(work_orders)}
 
       subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
         expect(redis_work_orders).to eq([work_orders_with_headers])
-        expect(subject.last_sender).to be_nil
-        done
+        expect(subject.last_sender).to match(/katie_80/)
+        done(0.1)
       end
     end
 
@@ -161,10 +161,8 @@ describe WorkerRoulette do
       good_publish = proc {good_foreman.enqueue_work_order('some old fashion work')}
       bad_publish  = proc {bad_foreman.enqueue_work_order('evil biddings you should not carry out')}
 
-      expect(tradesman).to receive(:work_orders!).twice.and_call_original
-      expect(evil_tradesman).to receive(:work_orders!).twice.and_call_original
-
-      #They are double subscribing; is it possible that it is the connection pool?
+      expect(tradesman).to  receive(:work_orders!).exactly(3).times.and_call_original
+      expect(evil_tradesman).to  receive(:work_orders!).exactly(3).times.and_call_original
 
       tradesman.wait_for_work_orders(good_publish) do |good_work|
         expect(good_work.to_s).to match("old fashion")
@@ -185,20 +183,6 @@ describe WorkerRoulette do
         subject.unsubscribe {done}
       end
       expect_any_instance_of(EM::Hiredis::PubsubClient).to receive(:close_connection).and_call_original
-    end
-
-    it "should periodically (random time between 20 and 25 seconds?) poll the job board for new work, in case it missed a notification" do
-      expect(EM::PeriodicTimer).to receive(:new) {|time| expect(time).to be_within(2.5).of(22.5)}
-      publish = proc {foreman.enqueue_work_order('foo')}
-      subject.wait_for_work_orders(publish) {done}
-    end
-
-    pending "cancels the old timer when the on_message callback is called" do
-      publish = proc {foreman.enqueue_work_order('foo')}
-      subject.wait_for_work_orders(publish) do
-        expect(subject.send(:timer)).to receive(:cancel).and_call_original
-        done
-      end
     end
 
     it "should pull off work orders for more than one sender" do

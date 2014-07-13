@@ -16,15 +16,22 @@ module WorkerRoulette
         local zadd              = 'ZADD'
         local rpush             = 'RPUSH'
         local publish           = 'PUBLISH'
+        local zcard             = 'ZCARD'
+        local del               = 'DEL'
 
         local function enqueue_work_orders(work_order, job_notification)
+          redis_call(rpush, sender_key, work_order)
+
+          -- called when a work from a new sender is added
           if (redis_call(zscore, job_board_key, sender_key) == false) then
             local count     = redis_call(incr, counter_key)
             redis_call(zadd, job_board_key, count, sender_key)
-          end
 
-          redis_call(rpush,sender_key, work_order)
-          redis_call(publish, channel, job_notification)
+            -- called when there is one job left on the board
+            if (redis_call(zcard, job_board_key) == 1) then
+              redis_call(publish, channel, job_notification)
+            end
+          end
         end
 
         enqueue_work_orders(work_order, job_notification)
