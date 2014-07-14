@@ -26,8 +26,8 @@ module WorkerRoulette
       expect(redis.get(lock_key)).not_to be_nil
     end
 
-    it "should set the lock to expire in 1 second" do
-      expect(redis.ttl(lock_key)).to eq(1)
+    it "should set the lock to expire in 3 second" do
+      expect(redis.ttl(lock_key)).to eq(3)
     end
 
     it "should not read a locked queue" do
@@ -66,7 +66,5 @@ module WorkerRoulette
       expect(subject.work_orders!).to be_empty
       expect(redis.get(lock_key)).to be_nil
     end
-
-    pending "pubsub should clean up one contention or remove the lock on the same sender queue automaticly"
   end
 end

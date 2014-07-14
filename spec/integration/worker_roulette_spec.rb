@@ -65,23 +65,6 @@ describe WorkerRoulette do
       other_forman.enqueue_work_order(work_orders.last)
       expect(redis.get(other_forman.counter_key)).to eq("2")
     end
-
-    it "should publish a notification that a new job is ready" do
-      result = nil
-      redis_tradesman = Redis.new
-      redis_tradesman.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |on|
-        on.subscribe do |channel, subscription|
-          subject.enqueue_work_order(work_orders)
-        end
-
-        on.message do |channel, notification|
-          result = notification
-          redis_tradesman.unsubscribe(WorkerRoulette::JOB_NOTIFICATIONS)
-        end
-      end
-
-      expect(result).to eq(WorkerRoulette::JOB_NOTIFICATIONS)
-    end
   end
 
   context Tradesman do
@@ -126,36 +109,33 @@ describe WorkerRoulette do
       expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([most_recent_sender])
     end
 
-    it "should get the work_orders from the next queue when a new job is ready" do
+    it "should get the work_orders from the next queue when a new job is ready, then poll for new work" do
       subject.work_orders!
-      expect(subject).to receive(:work_orders!).twice.and_call_original
+      expect(subject).to receive(:work_orders!).and_call_original
+      expect(subject.timer).to receive(:after)
 
-      publisher = -> {foreman.enqueue_work_order(work_orders); subject.unsubscribe}
+      foreman.enqueue_work_order(work_orders)
 
-      subject.wait_for_work_orders(publisher) do |redis_work_orders|
+      subject.wait_for_work_orders do |redis_work_orders|
         expect(redis_work_orders).to eq([work_orders_with_headers])
-        expect(subject.last_sender).to be_nil
+        expect(subject.last_sender).to eq('katie_80')
       end
     end
 
     it "should publish and subscribe on custom channels" do
       tradesman         = WorkerRoulette.tradesman('good_channel')
-      expect(tradesman).to receive(:work_orders!).twice.and_call_original
+      expect(tradesman).to receive(:work_orders!).and_call_original
 
       good_foreman      = WorkerRoulette.foreman('foreman', 'good_channel')
       bad_foreman       = WorkerRoulette.foreman('foreman', 'bad_channel')
 
+      good_foreman.enqueue_work_order('some old fashion work')
+      bad_foreman.enqueue_work_order('evil biddings you should not carry out')
 
-      publish  = -> do
-        good_foreman.enqueue_work_order('some old fashion work')
-        bad_foreman.enqueue_work_order('evil biddings you should not carry out')
-        tradesman.unsubscribe
-      end
-
-      tradesman.wait_for_work_orders(publish) do |work|
+      tradesman.wait_for_work_orders do |work|
         expect(work.to_s).to match("some old fashion work")
         expect(work.to_s).not_to match("evil")
-        expect(tradesman.last_sender).to be_nil
+        expect(tradesman.last_sender).to eq('foreman')
       end
     end
 

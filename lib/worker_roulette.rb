@@ -11,42 +11,30 @@ Dir[File.join(File.dirname(__FILE__),'worker_roulette','**','*.rb')].sort.each {
 module WorkerRoulette
   JOB_BOARD = "job_board"
   JOB_NOTIFICATIONS = "new_job_ready"
+  DEFAULT_POLLING_TIME = 2
 
   def self.start(config = {})
-    @redis_config               = { host: 'localhost', port: 6379, db: 14, driver: :hiredis, timeout: 5, evented: false, pool_size: 10 }.merge(config)
+    @redis_config               = { host: 'localhost', port: 6379, db: 14, driver: :hiredis, timeout: 5, evented: false, pool_size: 10 , polling_time: DEFAULT_POLLING_TIME}.merge(config)
     @pool_config                = Hash[size: @redis_config.delete(:pool_size), timeout: @redis_config.delete(:timeout)]
     @evented                    = @redis_config.delete(:evented)
+    @polling_time               = @redis_config.delete(:polling_time)
 
     @foreman_connection_pool    = ConnectionPool.new(@pool_config) {new_redis}
     @tradesman_connection_pool  = ConnectionPool.new(@pool_config) {new_redis}
-    @pubsub_connection_pool     = ConnectionPool.new(@pool_config) {new_redis_pubsub}
   end
 
-  def self.foreman(sender, channel = nil)
+  def self.foreman(sender, namespace = nil)
     raise "WorkerRoulette not Started" unless @foreman_connection_pool
-    Foreman.new(sender, @foreman_connection_pool, channel)
+    Foreman.new(sender, @foreman_connection_pool, namespace)
   end
 
-  def self.tradesman(channel = nil)
+  def self.tradesman(namespace = nil, polling_time = DEFAULT_POLLING_TIME)
     raise "WorkerRoulette not Started" unless @tradesman_connection_pool
-    Tradesman.new(@tradesman_connection_pool, @pubsub_connection_pool, channel)
-  end
-
-  def self.a_foreman(sender, channel = nil)
-    foreman(sender, channel)
-  end
-
-  def self.a_tradesman(channel = nil)
-    raise "WorkerRoulette not Started" unless @tradesman_connection_pool
-    ATradesman.new(@tradesman_connection_pool, @pubsub_connection_pool, channel)
+    Tradesman.new(@tradesman_connection_pool, namespace, polling_time || @polling_time)
   end
 
   def self.tradesman_connection_pool
     @tradesman_connection_pool
-  end
-
-  def self.pubsub_connection_pool
-    @pubsub_connection_pool
   end
 
   def self.pool_size
@@ -79,6 +67,14 @@ module WorkerRoulette
 
   def self.counter_key(sender, namespace = nil)
     "#{namespace + ':' if namespace}counter_key"
+  end
+
+  def self.evented?
+    @evented
+  end
+
+  def self.polling_time
+    @polling_time
   end
 
   private

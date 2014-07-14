@@ -18,11 +18,11 @@ describe WorkerRoulette do
   end
 
   context "Evented Foreman" do
-    let(:subject) {WorkerRoulette.a_foreman(sender)}
+    let(:subject) {WorkerRoulette.foreman(sender)}
 
     it "enqueues work" do
       called = false
-      foreman = WorkerRoulette.a_foreman('foreman')
+      foreman = WorkerRoulette.foreman('foreman')
       foreman.enqueue_work_order('some old fashion work') do |redis_response, stuff|
         called = true
       end
@@ -63,7 +63,7 @@ describe WorkerRoulette do
     end
 
     it "should post the sender's id to the job board with an order number" do
-      first_foreman      = WorkerRoulette.a_foreman('first_foreman')
+      first_foreman      = WorkerRoulette.foreman('first_foreman')
       first_foreman.enqueue_work_order('foo') do
         subject.enqueue_work_order(work_orders.first) do
           subject.enqueue_work_order(work_orders.last) do
@@ -75,7 +75,7 @@ describe WorkerRoulette do
     end
 
     it "should generate a monotically increasing score for senders not on the job board, but not for senders already there" do
-      first_foreman = WorkerRoulette.a_foreman('first_foreman')
+      first_foreman = WorkerRoulette.foreman('first_foreman')
       expect(redis.get(subject.counter_key)).to be_nil
       first_foreman.enqueue_work_order(work_orders.first) do
         expect(redis.get(subject.counter_key)).to eq("1")
@@ -88,21 +88,11 @@ describe WorkerRoulette do
         end
       end
     end
-
-    it "should publish a notification that a new job is ready" do
-      result = nil
-      subscriber = WorkerRoulette.new_redis_pubsub
-      subscriber.subscribe(WorkerRoulette::JOB_NOTIFICATIONS) do |message|
-        subscriber.unsubscribe(WorkerRoulette::JOB_NOTIFICATIONS)
-        expect(message).to eq(WorkerRoulette::JOB_NOTIFICATIONS)
-        done
-      end.callback { subject.enqueue_work_order(work_orders) }
-    end
   end
 
   context "Evented Tradesman" do
-    let(:foreman) {WorkerRoulette.a_foreman(sender)}
-    let(:subject)  {WorkerRoulette.a_tradesman}
+    let(:foreman) {WorkerRoulette.foreman(sender)}
+    let(:subject)  {WorkerRoulette.tradesman(nil, 0.01) }
 
     it "should be working on behalf of a sender" do
       foreman.enqueue_work_order(work_orders) do
@@ -119,7 +109,7 @@ describe WorkerRoulette do
         subject.work_orders! do |r|
           expect(r).to eq([work_orders_with_headers])
           subject.work_orders! do |r| expect(r).to be_empty
-          subject.work_orders! {|r| expect(r).to be_empty; done} #does not throw an error if queue is alreay empty
+            subject.work_orders! {|r| expect(r).to be_empty; done} #does not throw an error if queue is alreay empty
           end
         end
       end
@@ -129,7 +119,7 @@ describe WorkerRoulette do
       foreman.enqueue_work_order(work_orders) do
         oldest_sender = sender.to_s
         most_recent_sender = 'most_recent_sender'
-        most_recent_foreman = WorkerRoulette.a_foreman(most_recent_sender)
+        most_recent_foreman = WorkerRoulette.foreman(most_recent_sender)
         most_recent_foreman.enqueue_work_order(work_orders) do
           expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([oldest_sender, most_recent_sender])
           subject.work_orders! { expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([most_recent_sender]); done }
@@ -138,13 +128,20 @@ describe WorkerRoulette do
     end
 
     it "should get the work_orders from the next queue when a new job is ready" do
-      expect(subject).to receive(:work_orders!).exactly(3).times.and_call_original
-      publish = proc {foreman.enqueue_work_order(work_orders)}
+      #tradesman polls every so often, we care that it is called at least twice, but did not use
+      #the built in rspec syntax for that bc if the test ends while we're talking to redis, redis
+      #throws an Error. This way we ensure we call work_orders! at least twice and just stub the second
+      #call so as not to hurt redis' feelings.
 
-      subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
-        expect(redis_work_orders).to eq([work_orders_with_headers])
-        expect(subject.last_sender).to match(/katie_80/)
-        done(0.1)
+      expect(subject).to receive(:work_orders!).and_call_original
+      expect(subject).to receive(:work_orders!)
+
+      foreman.enqueue_work_order(work_orders) do
+        subject.wait_for_work_orders do |redis_work_orders|
+          expect(redis_work_orders).to eq([work_orders_with_headers])
+          expect(subject.last_sender).to match(/katie_80/)
+          done(0.1)
+        end
       end
     end
 
@@ -152,44 +149,45 @@ describe WorkerRoulette do
       good_subscribed   = false
       bad_subscribed    = false
 
-      tradesman         = WorkerRoulette.a_tradesman('good_channel')
-      evil_tradesman    = WorkerRoulette.a_tradesman('bad_channel')
+      tradesman         = WorkerRoulette.tradesman('good_channel', 0.001)
+      evil_tradesman    = WorkerRoulette.tradesman('bad_channel', 0.001)
 
-      good_foreman      = WorkerRoulette.a_foreman('foreman', 'good_channel')
-      bad_foreman       = WorkerRoulette.a_foreman('foreman', 'bad_channel')
+      good_foreman      = WorkerRoulette.foreman('foreman', 'good_channel')
+      bad_foreman       = WorkerRoulette.foreman('foreman', 'bad_channel')
 
-      good_publish = proc {good_foreman.enqueue_work_order('some old fashion work')}
-      bad_publish  = proc {bad_foreman.enqueue_work_order('evil biddings you should not carry out')}
+      #tradesman polls every so often, we care that it is called at least twice, but did not use
+      #the built in rspec syntax for that bc if the test ends while we're talking to redis, redis
+      #throws an Error. This way we ensure we call work_orders! at least twice and just stub the second
+      #call so as not to hurt redis' feelings.
+      expect(tradesman).to       receive(:work_orders!).and_call_original
+      expect(tradesman).to       receive(:work_orders!)
 
-      expect(tradesman).to  receive(:work_orders!).exactly(3).times.and_call_original
-      expect(evil_tradesman).to  receive(:work_orders!).exactly(3).times.and_call_original
+      expect(evil_tradesman).to  receive(:work_orders!).and_call_original
+      expect(evil_tradesman).to  receive(:work_orders!)
 
-      tradesman.wait_for_work_orders(good_publish) do |good_work|
-        expect(good_work.to_s).to match("old fashion")
-        expect(good_work.to_s).not_to match("evil")
+      good_foreman.enqueue_work_order('some old fashion work') do
+        bad_foreman.enqueue_work_order('evil biddings you should not carry out') do
+
+          tradesman.wait_for_work_orders do |good_work|
+            expect(good_work.to_s).to match("old fashion")
+            expect(good_work.to_s).not_to match("evil")
+          end
+
+          evil_tradesman.wait_for_work_orders do |bad_work|
+            expect(bad_work.to_s).not_to match("old fashion")
+            expect(bad_work.to_s).to match("evil")
+          end
+          done(0.1)
+
+        end
       end
-
-      evil_tradesman.wait_for_work_orders(bad_publish) do |bad_work|
-        expect(bad_work.to_s).not_to match("old fashion")
-        expect(bad_work.to_s).to match("evil")
-      end
-
-      done(0.2)
-    end
-
-    it "should unsubscribe from the job board" do
-      publish = proc {foreman.enqueue_work_order(work_orders)}
-      subject.wait_for_work_orders(publish) do |redis_work_orders, message, channel|
-        subject.unsubscribe {done}
-      end
-      expect_any_instance_of(EM::Hiredis::PubsubClient).to receive(:close_connection).and_call_original
     end
 
     it "should pull off work orders for more than one sender" do
-      tradesman = WorkerRoulette.a_tradesman('good_channel')
+      tradesman = WorkerRoulette.tradesman('good_channel')
 
-      good_foreman = WorkerRoulette.a_foreman('good_foreman', 'good_channel')
-      lazy_foreman = WorkerRoulette.a_foreman('lazy_foreman', 'good_channel')
+      good_foreman = WorkerRoulette.foreman('good_foreman', 'good_channel')
+      lazy_foreman = WorkerRoulette.foreman('lazy_foreman', 'good_channel')
 
       got_good = false
       got_lazy  = false
@@ -220,7 +218,7 @@ describe WorkerRoulette do
     it "should not leak connections"
 
     it "should be fork() proof" do
-      @subject = WorkerRoulette.a_tradesman
+      @subject = WorkerRoulette.tradesman
       @subject.work_orders! do
         fork do
           @subject.work_orders!

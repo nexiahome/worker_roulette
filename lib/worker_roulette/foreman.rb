@@ -26,11 +26,6 @@ module WorkerRoulette
           if (redis_call(zscore, job_board_key, sender_key) == false) then
             local count     = redis_call(incr, counter_key)
             redis_call(zadd, job_board_key, count, sender_key)
-
-            -- called when there is one job left on the board
-            if (redis_call(zcard, job_board_key) == 1) then
-              redis_call(publish, channel, job_notification)
-            end
           end
         end
 

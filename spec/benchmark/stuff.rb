@@ -5,32 +5,21 @@ def publish(iterations)
   WorkerRoulette.start(evented: false)
   work_order = {'ding dong' => "hello_foreman_" * 100}
   iterations.times do |iteration|
-    sender = 'sender_' + (iteration / 2).to_i.to_s
+    sender = 'sender_' + (30_000 * rand).to_i
     foreman = WorkerRoulette.foreman(sender, 'good_channel')
     foreman.enqueue_work_order(work_order)
     puts "published: #{iteration}" if iteration % 10_000 == 0
   end
 end
 
-def subscribe(iterations)
-  WorkerRoulette.start(evented: false)
-  @tradesman = WorkerRoulette.tradesman('good_channel')
-  @received = 0
-  @tradesman.wait_for_work_orders do |work|
-    @start ||= Time.now
-    @received += 1
-    puts @received if @received % (iterations / 10) == 0
-    puts "#{ iterations / (Time.now - start).to_i} reads per seconds" if @received == iterations
-  end
-end
-
 def asub(iterations)
   WorkerRoulette.start(evented: true)
-  @tradesman = WorkerRoulette.a_tradesman('good_channel')
-  @received = 0
-  @tradesman.wait_for_work_orders do |work|
-    @received += work.length
-    puts @received if @received % (iterations / 10) == 0
+    @tradesman = WorkerRoulette.tradesman('good_channel')
+    @received = 0
+    @tradesman.wait_for_work_orders do |work|
+      @received += work.length
+      puts @received if @received % (iterations / 10) == 0
+    end
   end
 end
 

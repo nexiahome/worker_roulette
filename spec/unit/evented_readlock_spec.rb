@@ -29,9 +29,9 @@ module WorkerRoulette
       end
     end
 
-    it "should set the lock to expire in 1 second" do
+    it "should set the lock to expire in 3 seconds" do
       evented_readlock_preconditions do
-        expect(redis.ttl(lock_key)).to eq(1)
+        expect(redis.ttl(lock_key)).to eq(3)
         done
       end
     end
