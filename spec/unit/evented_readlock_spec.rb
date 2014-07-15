@@ -1,23 +1,24 @@
 require 'spec_helper'
 module WorkerRoulette
- describe "Evented Read Lock" do
+  describe "Evented Read Lock" do
     include EventedSpec::EMSpec
 
-    let(:redis) {Redis.new(WorkerRoulette.redis_config)}
+    let(:redis) {Redis.new(WorkerRoulette.start.redis_config)}
     let(:sender) {'katie_80'}
     let(:work_orders) {"hellot"}
     let(:lock_key) {"L*:#{sender}"}
     let(:default_headers) {Hash['headers' => {'sender' => sender, 'namespace' => nil}]}
     let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
     let(:jsonized_work_orders_with_headers) {[WorkerRoulette.dump(work_orders_with_headers)]}
-    let(:foreman) {WorkerRoulette.foreman(sender)}
-    let(:number_two) {WorkerRoulette.foreman('number_two')}
-    let(:subject) {WorkerRoulette.tradesman}
-    let(:subject_two) {WorkerRoulette.tradesman}
+    let(:worker_roulette) { WorkerRoulette.start(evented: true) }
+    let(:foreman) {worker_roulette.foreman(sender)}
+    let(:number_two) {worker_roulette.foreman('number_two')}
+    let(:subject) {worker_roulette.tradesman}
+    let(:subject_two) {worker_roulette.tradesman}
+    let(:lua) { Lua.new(worker_roulette.tradesman_connection_pool) }
 
     em_before do
-      WorkerRoulette.start(evented: true)
-      Lua.clear_cache!
+      lua.clear_cache!
       redis.script(:flush)
       redis.flushdb
     end
@@ -45,13 +46,13 @@ module WorkerRoulette
     end
 
     it "should read from the first available queue that is not locked" do
-       evented_readlock_preconditions do
-         foreman.enqueue_work_order(work_orders) do    #locked
-           number_two.enqueue_work_order(work_orders) do  #unlocked
+      evented_readlock_preconditions do
+        foreman.enqueue_work_order(work_orders) do    #locked
+          number_two.enqueue_work_order(work_orders) do  #unlocked
             subject_two.work_orders!{|work| expect(work.first['headers']['sender']).to eq('number_two'); done}
           end
-         end
-       end
+        end
+      end
     end
 
     it "should release its last lock when it asks for its next work order from another sender" do
@@ -94,13 +95,13 @@ module WorkerRoulette
         end
       end
     end
-  end
 
-  def evented_readlock_preconditions(&spec_block)
-    foreman.enqueue_work_order(work_orders) do
-      subject.work_orders! do |work|
-        expect(work).to eq([work_orders_with_headers])
-        spec_block.call
+    def evented_readlock_preconditions(&spec_block)
+      foreman.enqueue_work_order(work_orders) do
+        subject.work_orders! do |work|
+          expect(work).to eq([work_orders_with_headers])
+          spec_block.call
+        end
       end
     end
   end

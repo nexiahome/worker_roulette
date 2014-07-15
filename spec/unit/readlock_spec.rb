@@ -1,21 +1,22 @@
 require 'spec_helper'
 module WorkerRoulette
  describe "Read Lock" do
-    let(:redis) {Redis.new(WorkerRoulette.redis_config)}
+    let(:worker_roulette) {WorkerRoulette.start(evented: false)}
+    let(:redis) {Redis.new(worker_roulette.redis_config)}
     let(:sender) {'katie_80'}
     let(:work_orders) {"hellot"}
     let(:lock_key) {"L*:#{sender}"}
     let(:default_headers) {Hash['headers' => {'sender' => sender, 'namespace' => nil}]}
     let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
     let(:jsonized_work_orders_with_headers) {[WorkerRoulette.dump(work_orders_with_headers)]}
-    let(:foreman) {WorkerRoulette.foreman(sender)}
-    let(:number_two) {WorkerRoulette.foreman('number_two')}
-    let(:subject) {WorkerRoulette.tradesman}
-    let(:subject_two) {WorkerRoulette.tradesman}
+    let(:foreman) {worker_roulette.foreman(sender)}
+    let(:number_two) {worker_roulette.foreman('number_two')}
+    let(:subject) {worker_roulette.tradesman}
+    let(:subject_two) {worker_roulette.tradesman}
+    let(:lua) { Lua.new(worker_roulette.tradesman_connection_pool) }
 
     before do
-      WorkerRoulette.start(evented: false)
-      Lua.clear_cache!
+      lua.clear_cache!
       redis.script(:flush)
       redis.flushdb
       foreman.enqueue_work_order(work_orders)

@@ -67,20 +67,22 @@ module WorkerRoulette
   return drain_work_orders(job_board_key, last_sender_key, empty_string)
   HERE
 
-    def initialize(client_pool, namespace = nil, polling_time = WorkerRoulette::DEFAULT_POLLING_TIME)
-      @polling_time = polling_time
-      @client_pool  = client_pool
-      @namespace    = namespace
-      @channel      = namespace || WorkerRoulette::JOB_NOTIFICATIONS
+    def initialize(redis_pool, evented, namespace = nil, polling_time = WorkerRoulette::DEFAULT_POLLING_TIME)
+      @evented        = evented
+      @polling_time   = polling_time
+      @redis_pool     = redis_pool
+      @namespace      = namespace
+      @channel        = namespace || WorkerRoulette::JOB_NOTIFICATIONS
+      @timer          = Timers::Group.new
+      @lua            = Lua.new(@redis_pool)
       @remaining_jobs = 0
-      @timer = Timers::Group.new
     end
 
     def wait_for_work_orders(&on_message_callback)
       return unless on_message_callback
       work_orders! do |work|
         on_message_callback.call(work) if work.any?
-        if WorkerRoulette.evented?
+        if @evented
           evented_drain_work_queue!(&on_message_callback)
         else
           non_evented_drain_work_queue!(&on_message_callback)
@@ -89,7 +91,7 @@ module WorkerRoulette
     end
 
     def work_orders!(&callback)
-      Lua.call(LUA_DRAIN_WORK_ORDERS, [job_board_key, @last_sender], [nil]) do |results|
+      @lua.call(LUA_DRAIN_WORK_ORDERS, [job_board_key, @last_sender], [nil]) do |results|
         sender_key      = results[0]
         work_orders     = results[1]
         @remaining_jobs = results[2]

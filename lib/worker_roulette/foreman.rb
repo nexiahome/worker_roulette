@@ -32,11 +32,12 @@ module WorkerRoulette
         enqueue_work_orders(work_order, job_notification)
     HERE
 
-    def initialize(sender, redis_pool, namespace = nil)
+    def initialize(redis_pool, sender, namespace = nil)
       @sender     = sender
       @namespace  = namespace
       @redis_pool = redis_pool
       @channel    = namespace || WorkerRoulette::JOB_NOTIFICATIONS
+      @lua        = Lua.new(@redis_pool)
     end
 
     def enqueue_work_order(work_order, headers = {}, &callback)
@@ -45,7 +46,7 @@ module WorkerRoulette
     end
 
     def enqueue_work_order_without_headers(work_order, &callback)
-      Lua.call(LUA_ENQUEUE_WORK_ORDERS, [counter_key, job_board_key, sender_key, @channel],
+      @lua.call(LUA_ENQUEUE_WORK_ORDERS, [counter_key, job_board_key, sender_key, @channel],
                [WorkerRoulette.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
     end
 
@@ -58,7 +59,7 @@ module WorkerRoulette
     end
 
     def sender_key
-      @sender_key = WorkerRoulette.sender_key(sender, @namespace)
+      @sender_key ||= WorkerRoulette.sender_key(@sender, @namespace)
     end
 
     private
