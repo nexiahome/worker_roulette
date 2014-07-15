@@ -19,10 +19,10 @@ sender_id = :shady
 foreman = WorkerRoulette.foreman(sender_id)
 foreman.enqueue_work_order('hello')
 
-#Pull it off (headers always include both the unique id of the sender, and the sender's [optional] namespace)
+#Pull it off (headers always include both the unique id of the sender)
 tradesman = WorkerRoulette.tradesman
 work_orders = tradesman.work_orders! #drain the queue of the next available sender
-work_orders # => {'headers' => {'sender' => :shady, 'namespace' => nil}, 'payload' => ['hello']}
+work_orders # => {'headers' => {'sender' => :shady}, 'payload' => ['hello']}
 
 #Enqueue some more from someone else
 other_sender_id = :the_real_slim_shady
@@ -31,7 +31,7 @@ other_foreman.enqueue_work_order({'can you get me' => 'the number nine?'}, {'cus
 
 #Have the same worker pull that off
 work_orders = tradesman.work_orders! #drain the queue of the next available sender
-work_orders # => {'headers' => {'sender' => :the_real_slim_shady, 'namespace' => 'some_namespace', 'custom' => 'headers'},
+work_orders # => {'headers' => {'sender' => :the_real_slim_shady, 'custom' => 'headers'},
             #     'payload' => [{'can you get me' => 'the number nine?'}]}
 
 #Have your workers wait for work to come in
