@@ -5,7 +5,7 @@ describe WorkerRoulette do
 
   let(:sender) {'katie_80'}
   let(:work_orders) {["hello", "foreman"]}
-  let(:default_headers) {Hash['headers' => {'sender' => sender}]}
+  let(:default_headers) {Hash['headers' => {'sender' => sender, 'namespace' => nil}]}
   let(:hello_work_order) {Hash['payload' => "hello"]}
   let(:foreman_work_order) {Hash['payload' => "foreman"]}
   let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}

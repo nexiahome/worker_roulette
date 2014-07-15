@@ -5,7 +5,7 @@ module WorkerRoulette
     let(:sender) {'katie_80'}
     let(:work_orders) {"hellot"}
     let(:lock_key) {"L*:#{sender}"}
-    let(:default_headers) {Hash['headers' => {'sender' => sender}]}
+    let(:default_headers) {Hash['headers' => {'sender' => sender, 'namespace' => nil}]}
     let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
     let(:jsonized_work_orders_with_headers) {[WorkerRoulette.dump(work_orders_with_headers)]}
     let(:foreman) {WorkerRoulette.foreman(sender)}

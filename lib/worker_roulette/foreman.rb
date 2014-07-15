@@ -1,6 +1,6 @@
 module WorkerRoulette
   class Foreman
-    attr_reader :sender
+    attr_reader :sender, :namespace, :channel
 
     LUA_ENQUEUE_WORK_ORDERS = <<-HERE
         local counter_key       = KEYS[1]
@@ -57,14 +57,14 @@ module WorkerRoulette
       @counter_key ||= WorkerRoulette.counter_key(@namespace)
     end
 
-    private
-
     def sender_key
       @sender_key = WorkerRoulette.sender_key(sender, @namespace)
     end
 
+    private
+
     def default_headers
-      Hash['sender' => sender]
+      Hash['sender' => sender, 'namespace' => @namespace]
     end
   end
 end

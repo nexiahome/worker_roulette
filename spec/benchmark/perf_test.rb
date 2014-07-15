@@ -17,11 +17,11 @@ times = Benchmark.bm do |x|
       WorkerRoulette.start(evented: true)
       WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
       @total = 0
-      @tradesman = WorkerRoulette.a_tradesman
+      @tradesman = WorkerRoulette.tradesman
 
       ITERATIONS.times do |iteration|
         sender = 'sender_' + iteration.to_s
-        foreman = WorkerRoulette.a_foreman(sender)
+        foreman = WorkerRoulette.foreman(sender)
         foreman.enqueue_work_order(work_order) do
           @tradesman.work_orders! do
             @total += 1
@@ -32,34 +32,32 @@ times = Benchmark.bm do |x|
     end
   end
 end
-puts "#{ITERATIONS / times.first.real} ASync Api Read/Writes per second"
+puts "#{(ITERATIONS / times.first.real).to_i} ASync Api Read/Writes per second"
 puts "#################"
 puts
 
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 
 times = Benchmark.bm do |x|
-  x.report "#{ITERATIONS * 2} ASync Api Pubsub Read/Writes" do
+  x.report "#{ITERATIONS * 2} ASync Api Polling Read/Writes" do
     EM.run do
       @processed = 0
       @total     = 0
       WorkerRoulette.start(evented: true)
       WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
       @total = 0
-      @tradesman = WorkerRoulette.a_tradesman
-      on_subscribe = ->(*args) do
-        @start = Time.now
-        ITERATIONS.times do |iteration|
-          sender = 'sender_' + iteration.to_s
-          foreman = WorkerRoulette.a_foreman(sender)
-          foreman.enqueue_work_order(work_order)
-        end
+      @tradesman = WorkerRoulette.tradesman
+      ITERATIONS.times do |iteration|
+        @start ||= Time.now
+        sender = 'sender_' + iteration.to_s
+        foreman = WorkerRoulette.foreman(sender)
+        foreman.enqueue_work_order(work_order)
       end
-      @tradesman.wait_for_work_orders(on_subscribe) {@processed += 1; ((@stop = Time.now) && EM.add_timer(1){EM.stop}) if @processed == (ITERATIONS - 1)}
+      @tradesman.wait_for_work_orders {@processed += 1; ((@stop = Time.now) && EM.add_timer(1){EM.stop}) if @processed == (ITERATIONS - 1)}
     end
   end
 end
-puts "#{ITERATIONS * 2 / (@stop - @start)} ASync Api Pubsub Read/Writes per second"
+puts "#{ITERATIONS * 2 / (@stop - @start)} ASync Api Polling Read/Writes per second"
 puts "#################"
 puts
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
@@ -78,7 +76,7 @@ times = Benchmark.bm do |x|
 end
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 
-puts "#{ITERATIONS / times.first.real} Sync Api Writes per second"
+puts "#{(ITERATIONS / times.first.real).to_i} Sync Api Writes per second"
 puts "#################"
 puts
 ITERATIONS.times do |iteration|
@@ -96,7 +94,7 @@ times = Benchmark.bm do |x|
     end
   end
 end
-puts "#{ITERATIONS / times.first.real} Sync Api Reads per second"
+puts "#{(ITERATIONS / times.first.real).to_i} Sync Api Reads per second"
 puts "#################"
 puts
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
@@ -116,26 +114,24 @@ times = Benchmark.bm do |x|
     end
   end
 end
-puts "#{ITERATIONS / times.first.real} Sync Api Read/Writes per second"
+puts "#{(ITERATIONS / times.first.real).to_i} Sync Api Read/Writes per second"
 puts "#################"
 puts
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}
 
 times = Benchmark.bm do |x|
-  x.report "#{ITERATIONS * 2} Sync Api Pubsub Read/Writes" do
+  x.report "#{ITERATIONS * 2} Sync Api Polling Read/Writes" do
     WorkerRoulette.start(size: REDIS_CONNECTION_POOL_SIZE, evented: false)
     ITERATIONS.times do |iteration|
-      p = -> do
-        sender = 'sender_' + iteration.to_s
-        foreman = WorkerRoulette.foreman(sender)
-        foreman.enqueue_work_order(work_order)
-      end
+      sender = 'sender_' + iteration.to_s
+      foreman = WorkerRoulette.foreman(sender)
+      foreman.enqueue_work_order(work_order)
       tradesman = WorkerRoulette.tradesman
-      tradesman.wait_for_work_orders(p) {|m| m; tradesman.unsubscribe}
+      tradesman.wait_for_work_orders {|m| m}
     end
   end
 end
-puts "#{ITERATIONS * 2 / times.first.real} Sync Api Pubsub Read/Writes per second"
+puts "#{(ITERATIONS * 2 / times.first.real).to_i} Sync Api Polling Read/Writes per second"
 puts "#################"
 puts
 WorkerRoulette.tradesman_connection_pool.with {|r| r.flushdb}

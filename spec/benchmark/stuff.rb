@@ -5,7 +5,7 @@ def publish(iterations)
   WorkerRoulette.start(evented: false)
   work_order = {'ding dong' => "hello_foreman_" * 100}
   iterations.times do |iteration|
-    sender = 'sender_' + (30_000 * rand).to_i
+    sender = 'sender_' + (30_000 * rand).to_i.to_s
     foreman = WorkerRoulette.foreman(sender, 'good_channel')
     foreman.enqueue_work_order(work_order)
     puts "published: #{iteration}" if iteration % 10_000 == 0

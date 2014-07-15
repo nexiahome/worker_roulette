@@ -3,7 +3,7 @@ require "spec_helper"
 describe WorkerRoulette do
   let(:sender) {'katie_80'}
   let(:work_orders) {["hello", "foreman"]}
-  let(:default_headers) {Hash['headers' => {'sender' => sender}]}
+  let(:default_headers) {Hash['headers' => {'sender' => sender, 'namespace' => nil}]}
   let(:hello_work_order) {Hash['payload' => "hello"]}
   let(:foreman_work_order) {Hash['payload' => "foreman"]}
   let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
@@ -26,27 +26,35 @@ describe WorkerRoulette do
       expect(subject.sender).to eq(sender)
     end
 
-    it "should enqueue_work_order two work_orders in the sender's slot in the switchboard" do
+    it "should enqueue_work_order two work_orders in the sender's work queue" do
       subject.enqueue_work_order(work_orders.first) {}
       subject.enqueue_work_order(work_orders.last) {}
       expect(redis.lrange(sender, 0, -1)).to eq(work_orders.map {|m| WorkerRoulette.dump(default_headers.merge({'payload' => m})) })
     end
 
-    it "should enqueue_work_order an array of work_orders without headers in the sender's slot in the switchboard" do
+    it "should enqueue_work_order an array of work_orders without headers in the sender's work queue" do
       subject.enqueue_work_order_without_headers(work_orders)
       expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders)])
     end
 
-    it "should enqueue_work_order an array of work_orders with default headers in the sender's slot in the switchboard" do
+    it "should enqueue_work_order an array of work_orders with default headers in the sender's work queue" do
       subject.enqueue_work_order(work_orders)
       expect(redis.lrange(sender, 0, -1)).to eq(jsonized_work_orders_with_headers)
     end
 
-    it "should enqueue_work_order an array of work_orders with additional headers in the sender's slot in the switchboard" do
+    it "should enqueue_work_order an array of work_orders with additional headers in the sender's work queue" do
       extra_headers = {'foo' => 'bars'}
       subject.enqueue_work_order(work_orders, extra_headers)
       work_orders_with_headers['headers'].merge!(extra_headers)
       expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders_with_headers)])
+    end
+
+    it "should include the senders namespace in the default message headers" do
+      namspace = "my_namspace"
+      foreman = WorkerRoulette.foreman("sender_id", namspace)
+      foreman.enqueue_work_order("some work")
+      work = WorkerRoulette.tradesman(namspace).work_orders!
+      expect(work.first['headers']['namespace']).to eq(namspace)
     end
 
     it "should post the sender's id to the job board with an order number" do
@@ -86,13 +94,13 @@ describe WorkerRoulette do
       expect(subject.last_sender).to be_nil
     end
 
-    it "should drain one set of work_orders from the sender's slot in the switchboard" do
+    it "should drain one set of work_orders from the sender's work queue" do
       expect(subject.work_orders!).to eq([work_orders_with_headers])
       expect(subject.work_orders!).to be_empty
       expect(subject.work_orders!).to be_empty #does not throw an error if queue is already empty
     end
 
-    it "should drain all the work_orders from the sender's slot in the switchboard" do
+    it "should drain all the work_orders from the sender's work queue" do
       foreman.enqueue_work_order(work_orders)
       expect(subject.work_orders!).to eq([work_orders_with_headers, work_orders_with_headers])
       expect(subject.work_orders!).to be_empty
