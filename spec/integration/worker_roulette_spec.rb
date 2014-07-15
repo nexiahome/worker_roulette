@@ -3,7 +3,7 @@ module WorkerRoulette
   describe WorkerRoulette do
     let(:sender) {'katie_80'}
     let(:work_orders) {["hello", "foreman"]}
-    let(:default_headers) {Hash['headers' => {'sender' => sender, 'namespace' => nil}]}
+    let(:default_headers) {Hash['headers' => {'sender' => sender}]}
     let(:hello_work_order) {Hash['payload' => "hello"]}
     let(:foreman_work_order) {Hash['payload' => "foreman"]}
     let(:work_orders_with_headers) {default_headers.merge({'payload' => work_orders})}
@@ -44,14 +44,6 @@ module WorkerRoulette
         subject.enqueue_work_order(work_orders, extra_headers)
         work_orders_with_headers['headers'].merge!(extra_headers)
         expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders_with_headers)])
-      end
-
-      it "should include the senders namespace in the default message headers" do
-        namspace = "my_namspace"
-        foreman = worker_roulette.foreman("sender_id", namspace)
-        foreman.enqueue_work_order("some work")
-        work = worker_roulette.tradesman(namspace).work_orders!
-        expect(work.first['headers']['namespace']).to eq(namspace)
       end
 
       it "should post the sender's id to the job board with an order number" do

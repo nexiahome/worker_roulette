@@ -65,7 +65,7 @@ module WorkerRoulette
     private
 
     def default_headers
-      Hash['sender' => sender, 'namespace' => @namespace]
+      Hash['sender' => sender]
     end
   end
 end
