@@ -5,67 +5,67 @@ module WorkerRoulette
     attr_reader :last_sender, :remaining_jobs, :timer
 
     LUA_DRAIN_WORK_ORDERS = <<-HERE
-    local empty_string      = ""
-    local job_board_key     = KEYS[1]
-    local last_sender_key   = KEYS[2] or empty_string
-    local sender_key        = ARGV[1] or empty_string
-    local redis_call        = redis.call
-    local lock_key_prefix   = "L*:"
-    local lock_value        = 1
-    local ex                = "EX"
-    local nx                = "NX"
-    local get               = "GET"
-    local set               = "SET"
-    local del               = "DEL"
-    local lrange            = "LRANGE"
-    local zrank             = "ZRANK"
-    local zrange            = "ZRANGE"
-    local zrem              = "ZREM"
-    local zcard             = 'ZCARD'
+      local empty_string      = ""
+      local job_board_key     = KEYS[1]
+      local last_sender_key   = KEYS[2] or empty_string
+      local sender_key        = ARGV[1] or empty_string
+      local redis_call        = redis.call
+      local lock_key_prefix   = "L*:"
+      local lock_value        = 1
+      local ex                = "EX"
+      local nx                = "NX"
+      local get               = "GET"
+      local set               = "SET"
+      local del               = "DEL"
+      local lrange            = "LRANGE"
+      local zrank             = "ZRANK"
+      local zrange            = "ZRANGE"
+      local zrem              = "ZREM"
+      local zcard             = 'ZCARD'
 
-    local function drain_work_orders(job_board_key, last_sender_key, sender_key)
+      local function drain_work_orders(job_board_key, last_sender_key, sender_key)
 
-    --kill lock for last_sender_key
-    if last_sender_key ~= empty_string then
-      local last_sender_lock_key = lock_key_prefix .. last_sender_key
-      redis_call(del, last_sender_lock_key)
-    end
+        --kill lock for last_sender_key
+        if last_sender_key ~= empty_string then
+          local last_sender_lock_key = lock_key_prefix .. last_sender_key
+          redis_call(del, last_sender_lock_key)
+        end
 
-    if sender_key == empty_string then
-      sender_key = redis_call(zrange, job_board_key, 0, 0)[1] or empty_string
+        if sender_key == empty_string then
+          sender_key = redis_call(zrange, job_board_key, 0, 0)[1] or empty_string
 
-      -- return if job_board is empty
-      if sender_key == empty_string then
-        return {empty_string, {}, 0}
+          -- return if job_board is empty
+          if sender_key == empty_string then
+            return {empty_string, {}, 0}
+          end
+        end
+
+        local lock_key       = lock_key_prefix .. sender_key
+        local was_not_locked = redis_call(set, lock_key, lock_value, ex, 3, nx)
+
+        if was_not_locked then
+          local work_orders    = redis_call(lrange, sender_key, 0, -1)
+          redis_call(del, sender_key)
+
+          redis_call(zrem, job_board_key, sender_key)
+          local remaining_jobs = redis_call(zcard, job_board_key) or 0
+
+          return {sender_key, work_orders, remaining_jobs}
+        else
+          local sender_index    = redis_call(zrank, job_board_key, sender_key)
+          local next_index      = sender_index + 1
+          local next_sender_key = redis_call(zrange, job_board_key, next_index, next_index)[1]
+          if next_sender_key then
+            return drain_work_orders(job_board_key, empty_string, next_sender_key)
+          else
+            -- return if job_board is empty
+            return {empty_string, {}, 0}
+          end
+        end
       end
-    end
 
-    local lock_key       = lock_key_prefix .. sender_key
-    local was_not_locked = redis_call(set, lock_key, lock_value, ex, 3, nx)
-
-    if was_not_locked then
-      local work_orders    = redis_call(lrange, sender_key, 0, -1)
-      redis_call(del, sender_key)
-
-      redis_call(zrem, job_board_key, sender_key)
-      local remaining_jobs = redis_call(zcard, job_board_key) or 0
-
-      return {sender_key, work_orders, remaining_jobs}
-    else
-      local sender_index    = redis_call(zrank, job_board_key, sender_key)
-      local next_index      = sender_index + 1
-      local next_sender_key = redis_call(zrange, job_board_key, next_index, next_index)[1]
-      if next_sender_key then
-        return drain_work_orders(job_board_key, empty_string, next_sender_key)
-      else
-        -- return if job_board is empty
-        return {empty_string, {}, 0}
-      end
-    end
-  end
-
-  return drain_work_orders(job_board_key, last_sender_key, empty_string)
-  HERE
+      return drain_work_orders(job_board_key, last_sender_key, empty_string)
+    HERE
 
     def initialize(redis_pool, evented, namespace = nil, polling_time = WorkerRoulette::DEFAULT_POLLING_TIME)
       @evented        = evented
@@ -106,7 +106,8 @@ module WorkerRoulette
       @job_board_key ||= WorkerRoulette.job_board_key(@namespace)
     end
 
-  private
+    private
+
     def evented_drain_work_queue!(&on_message_callback)
       if remaining_jobs > 0
         EM.next_tick {wait_for_work_orders(&on_message_callback)}
