@@ -120,8 +120,8 @@ module WorkerRoulette
       if remaining_jobs > 0
         wait_for_work_orders(&on_message_callback)
       else
-        @timer.after(@polling_time) { wait_for_work_orders(&on_message_callback) }
-        @timer.wait
+        sleep 2
+        wait_for_work_orders(&on_message_callback)
       end
     end
   end
