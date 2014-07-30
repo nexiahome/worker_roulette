@@ -12,6 +12,11 @@ module WorkerRoulette
 
     let(:redis) {Redis.new(worker_roulette.redis_config)}
 
+    before do
+      redis.flushall
+      allow_any_instance_of(Timers::Group).to receive(:wait)
+    end
+
     it "should exist" do
       expect(worker_roulette).to be_instance_of(WorkerRoulette)
     end
@@ -65,8 +70,8 @@ module WorkerRoulette
     end
 
     context Tradesman do
-      let(:foreman) {worker_roulette.foreman(sender)}
-      let(:subject)  {worker_roulette.tradesman}
+      let(:foreman) { worker_roulette.foreman(sender) }
+      let(:tradesman) { worker_roulette.tradesman }
 
       before do
         foreman.enqueue_work_order(work_orders)
@@ -78,39 +83,39 @@ module WorkerRoulette
           most_recent_foreman = worker_roulette.foreman(most_recent_sender)
           most_recent_foreman.enqueue_work_order(work_orders)
           expect(redis.keys("L*:*").length).to eq(0)
-          subject.work_orders!
+          tradesman.work_orders!
           expect(redis.get("L*:katie_80")).to eq("1")
           expect(redis.keys("L*:*").length).to eq(1)
-          subject.work_orders!
+          tradesman.work_orders!
           expect(redis.keys("L*:*").length).to eq(1)
           expect(redis.get("L*:most_recent_sender")).to eq("1")
-          subject.work_orders!
+          tradesman.work_orders!
           expect(redis.keys("L*:*").length).to eq(0)
         end
       end
 
       it "should have a last sender if it found messages" do
-        expect(subject.work_orders!.length).to eq(1)
-        expect(subject.last_sender).to eq(sender)
+        expect(tradesman.work_orders!.length).to eq(1)
+        expect(tradesman.last_sender).to eq(sender)
       end
 
       it "should not have a last sender if it found no messages" do
-        expect(subject.work_orders!.length).to eq(1)
-        expect(subject.work_orders!.length).to eq(0)
-        expect(subject.last_sender).to be_nil
+        expect(tradesman.work_orders!.length).to eq(1)
+        expect(tradesman.work_orders!.length).to eq(0)
+        expect(tradesman.last_sender).to be_nil
       end
 
       it "should drain one set of work_orders from the sender's work queue" do
-        expect(subject.work_orders!).to eq([work_orders_with_headers])
-        expect(subject.work_orders!).to be_empty
-        expect(subject.work_orders!).to be_empty #does not throw an error if queue is already empty
+        expect(tradesman.work_orders!).to eq([work_orders_with_headers])
+        expect(tradesman.work_orders!).to be_empty
+        expect(tradesman.work_orders!).to be_empty #does not throw an error if queue is already empty
       end
 
       it "should drain all the work_orders from the sender's work queue" do
         foreman.enqueue_work_order(work_orders)
-        expect(subject.work_orders!).to eq([work_orders_with_headers, work_orders_with_headers])
-        expect(subject.work_orders!).to be_empty
-        expect(subject.work_orders!).to be_empty #does not throw an error if queue is already empty
+        expect(tradesman.work_orders!).to eq([work_orders_with_headers, work_orders_with_headers])
+        expect(tradesman.work_orders!).to be_empty
+        expect(tradesman.work_orders!).to be_empty #does not throw an error if queue is already empty
       end
 
       it "should take the oldest sender off the job board (FIFO)" do
@@ -118,21 +123,16 @@ module WorkerRoulette
         most_recent_sender = 'most_recent_sender'
         most_recent_foreman = worker_roulette.foreman(most_recent_sender)
         most_recent_foreman.enqueue_work_order(work_orders)
-        expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([oldest_sender, most_recent_sender])
-        subject.work_orders!
-        expect(redis.zrange(subject.job_board_key, 0, -1)).to eq([most_recent_sender])
+        expect(redis.zrange(tradesman.job_board_key, 0, -1)).to eq([oldest_sender, most_recent_sender])
+        tradesman.work_orders!
+        expect(redis.zrange(tradesman.job_board_key, 0, -1)).to eq([most_recent_sender])
       end
 
       it "should get the work_orders from the next queue when a new job is ready, then poll for new work" do
-        subject.work_orders!
-        expect(subject).to receive(:work_orders!).and_call_original
-        expect(subject.timer).to receive(:after)
-
-        foreman.enqueue_work_order(work_orders)
-
-        subject.wait_for_work_orders do |redis_work_orders|
+        tradesman.wait_for_work_orders do |redis_work_orders|
           expect(redis_work_orders).to eq([work_orders_with_headers])
-          expect(subject.last_sender).to eq('katie_80')
+          expect(tradesman.last_sender).to eq('katie_80')
+          allow(tradesman).to receive(:wait_for_work_orders)
         end
       end
 
@@ -150,6 +150,7 @@ module WorkerRoulette
           expect(work.to_s).to match("some old fashion work")
           expect(work.to_s).not_to match("evil")
           expect(tradesman.last_sender).to eq('foreman')
+          allow(tradesman).to receive(:wait_for_work_orders)
         end
       end
 

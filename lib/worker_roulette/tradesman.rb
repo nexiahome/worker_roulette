@@ -112,7 +112,7 @@ module WorkerRoulette
       if remaining_jobs > 0
         EM.next_tick {wait_for_work_orders(&on_message_callback)}
       else
-        EM.add_timer(@polling_time) {wait_for_work_orders(&on_message_callback)}
+        EM.add_timer(@polling_time) { wait_for_work_orders(&on_message_callback) }
       end
     end
 
@@ -120,7 +120,8 @@ module WorkerRoulette
       if remaining_jobs > 0
         wait_for_work_orders(&on_message_callback)
       else
-        @timer.after(@polling_time) {wait_for_work_orders(&on_message_callback)}
+        @timer.after(@polling_time) { wait_for_work_orders(&on_message_callback) }
+        @timer.wait
       end
     end
   end

@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'em-hiredis', '~> 0.2.1'
   spec.add_dependency 'connection_pool'
   spec.add_dependency 'eventmachine', '~> 1.0.3'
-  spec.add_dependency 'timers', '~> 3.0.1'
+  spec.add_dependency 'timers', '~> 4.0.0'
 
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rake'
