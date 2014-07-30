@@ -1,5 +1,3 @@
-require 'timers'
-
 module WorkerRoulette
   class Tradesman
     attr_reader :last_sender, :remaining_jobs, :timer
