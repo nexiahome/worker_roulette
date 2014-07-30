@@ -71,7 +71,6 @@ module WorkerRoulette
       @redis_pool     = redis_pool
       @namespace      = namespace
       @channel        = namespace || WorkerRoulette::JOB_NOTIFICATIONS
-      @timer          = Timers::Group.new
       @lua            = Lua.new(@redis_pool)
       @remaining_jobs = 0
     end

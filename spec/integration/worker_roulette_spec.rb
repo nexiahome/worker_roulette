@@ -14,7 +14,6 @@ module WorkerRoulette
 
     before do
       redis.flushall
-      allow_any_instance_of(Timers::Group).to receive(:wait)
     end
 
     it "should exist" do
