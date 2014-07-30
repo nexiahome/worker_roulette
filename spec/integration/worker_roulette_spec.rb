@@ -72,6 +72,23 @@ module WorkerRoulette
         foreman.enqueue_work_order(work_orders)
       end
 
+      context 'removing locks from queues' do
+        it "for the last_sender's queue" do
+          most_recent_sender = 'most_recent_sender'
+          most_recent_foreman = worker_roulette.foreman(most_recent_sender)
+          most_recent_foreman.enqueue_work_order(work_orders)
+          expect(redis.keys("L*:*").length).to eq(0)
+          subject.work_orders!
+          expect(redis.get("L*:katie_80")).to eq("1")
+          expect(redis.keys("L*:*").length).to eq(1)
+          subject.work_orders!
+          expect(redis.keys("L*:*").length).to eq(1)
+          expect(redis.get("L*:most_recent_sender")).to eq("1")
+          subject.work_orders!
+          expect(redis.keys("L*:*").length).to eq(0)
+        end
+      end
+
       it "should have a last sender if it found messages" do
         expect(subject.work_orders!.length).to eq(1)
         expect(subject.last_sender).to eq(sender)

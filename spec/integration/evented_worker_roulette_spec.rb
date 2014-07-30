@@ -99,6 +99,29 @@ module WorkerRoulette
         end
       end
 
+      it "should remove the lock from the last_sender's queue" do
+        most_recent_sender = 'most_recent_sender'
+        most_recent_foreman = worker_roulette.foreman(most_recent_sender)
+        other_foreman = worker_roulette.foreman('katie_80')
+
+        other_foreman.enqueue_work_order(work_orders) do
+          most_recent_foreman.enqueue_work_order(work_orders) do
+            expect(redis.keys("L*:*").length).to eq(0)
+            subject.work_orders! do
+              expect(redis.get("L*:katie_80")).to eq("1")
+              expect(redis.keys("L*:*").length).to eq(1)
+              subject.work_orders! do
+                expect(redis.keys("L*:*").length).to eq(1)
+                expect(redis.get("L*:most_recent_sender")).to eq("1")
+                subject.work_orders!
+                done(0.2) do
+                  expect(redis.keys("L*:*").length).to eq(0)
+                end
+              end
+            end
+          end
+        end
+      end
 
       it "should drain one set of work_orders from the sender's slot in the job board" do
         foreman.enqueue_work_order(work_orders) do
