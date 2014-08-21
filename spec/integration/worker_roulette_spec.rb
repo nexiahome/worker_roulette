@@ -166,15 +166,6 @@ module WorkerRoulette
             expect(pooled_redis.info["connected_clients"].to_i).to be > (worker_roulette.pool_size)
           end
         end
-
-        #This may be fixed soon (10 Feb 2014 - https://github.com/redis/redis-rb/pull/389 and https://github.com/redis/redis-rb/issues/364)
-        it "should not be fork() proof -- forking reconnects need to be handled in the calling code (until redis gem is udpated, then we should be fork-proof)" do
-          instance = WorkerRoulette.start
-          instance.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}
-          fork do
-            expect {instance.tradesman_connection_pool.with {|pooled_redis| pooled_redis.get("foo")}}.to raise_error(Redis::InheritedError)
-          end
-        end
       end
     end
   end

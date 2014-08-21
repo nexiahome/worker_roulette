@@ -18,11 +18,11 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_dependency 'oj'
-  spec.add_dependency 'redis', '~> 3.0.7'
-  spec.add_dependency 'hiredis', '~> 0.4.5'
-  spec.add_dependency 'em-hiredis', '~> 0.2.1'
+  spec.add_dependency 'redis'
+  spec.add_dependency 'hiredis'
+  spec.add_dependency 'em-hiredis'
   spec.add_dependency 'connection_pool'
-  spec.add_dependency 'eventmachine', '~> 1.0.3'
+  spec.add_dependency 'eventmachine'
 
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rake'
