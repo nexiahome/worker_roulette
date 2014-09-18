@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'worker_roulette/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'worker_roulette'
+  spec.name          = 'nexia_worker_roulette'
   spec.version       = WorkerRoulette::VERSION
   spec.authors       = ['Paul Saieg']
   spec.email         = ['classicist@gmail.com']
@@ -17,18 +17,18 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(spec)/})
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'oj'
-  spec.add_dependency 'redis'
-  spec.add_dependency 'hiredis'
-  spec.add_dependency 'em-hiredis'
-  spec.add_dependency 'connection_pool'
-  spec.add_dependency 'eventmachine'
+  spec.add_dependency 'oj', '~> 2.10'
+  spec.add_dependency 'redis', '~> 3.1'
+  spec.add_dependency 'hiredis', '~> 0.5'
+  spec.add_dependency 'em-hiredis', '~> 0.3'
+  spec.add_dependency 'connection_pool', '~> 2.0'
+  spec.add_dependency 'eventmachine', '~> 1.0'
 
-  spec.add_development_dependency 'bundler'
-  spec.add_development_dependency 'rake'
-  spec.add_development_dependency 'rspec', '~> 3.0.0'
-  spec.add_development_dependency 'pry-byebug'
-  spec.add_development_dependency 'simplecov'
-  spec.add_development_dependency 'simplecov-rcov'
-  spec.add_development_dependency 'rspec_junit_formatter'
+  spec.add_development_dependency 'bundler', '~> 1.7'
+  spec.add_development_dependency 'rake', '~> 10.3'
+  spec.add_development_dependency 'rspec', '~> 3.1'
+  spec.add_development_dependency 'pry-byebug', '~> 2.0'
+  spec.add_development_dependency 'simplecov', '~> 0.9'
+  spec.add_development_dependency 'simplecov-rcov', '~> 0.2'
+  spec.add_development_dependency 'rspec_junit_formatter', '~> 0.2'
 end
