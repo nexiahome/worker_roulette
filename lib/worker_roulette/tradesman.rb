@@ -138,7 +138,6 @@ module WorkerRoulette
 
     def get_more_work_for_last_sender(&on_message_callback)
       return unless on_message_callback
-      require "byebug"; byebug
       more_work_orders! do |work|
         on_message_callback.call(work) if work.any?
         if @evented
