@@ -1,5 +1,9 @@
 require "spec_helper"
 module WorkerRoulette
+  class Tradesman
+    attr_reader :lua
+  end
+
   describe WorkerRoulette do
     let(:sender) {'katie_80'}
     let(:work_orders) {["hello", "foreman"]}
@@ -69,8 +73,8 @@ module WorkerRoulette
     end
 
     context Tradesman do
-      let(:foreman) { worker_roulette.foreman(sender) }
-      let(:tradesman) { worker_roulette.tradesman }
+      let(:foreman)        { worker_roulette.foreman(sender) }
+      subject(:tradesman)  { worker_roulette.tradesman }
 
       before do
         foreman.enqueue_work_order(work_orders)
@@ -151,6 +155,26 @@ module WorkerRoulette
           expect(tradesman.last_sender).to eq('foreman')
           allow(tradesman).to receive(:wait_for_work_orders)
         end
+      end
+
+      it "goes back to the channel to get more work for the same sender" do
+        tradesman.wait_for_work_orders do |redis_work_orders|
+          expect(redis_work_orders).to eq([work_orders_with_headers])
+          expect(tradesman.last_sender).to eq('katie_80')
+          allow(tradesman).to receive(:wait_for_work_orders)
+        end
+
+        expect(tradesman.lua).to receive(:call).with(Tradesman::LUA_DRAIN_WORK_ORDERS_FOR_SENDER, [instance_of(String), sender])
+        tradesman.get_more_work_for_last_sender do |redis_work_orders|
+          expect(redis_work_orders).to eq([])
+        end
+
+        foreman.enqueue_work_order("more_work_orders")
+        expect(tradesman.lua).to receive(:call).with(Tradesman::LUA_DRAIN_WORK_ORDERS_FOR_SENDER, [instance_of(String), sender])
+        tradesman.get_more_work_for_last_sender do |redis_work_orders|
+          expect(redis_work_orders).to eq(["more_work_orders"])
+        end
+
       end
 
       context "Failure" do

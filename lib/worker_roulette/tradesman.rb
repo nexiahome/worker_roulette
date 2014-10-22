@@ -65,6 +65,43 @@ module WorkerRoulette
       return drain_work_orders(job_board_key, last_sender_key, empty_string)
     HERE
 
+    LUA_DRAIN_WORK_ORDERS_FOR_SENDER = <<-THERE
+      local empty_string     = ""
+      local job_board_key    = KEYS[1]
+      local sender_key       = KEYS[2] or empty_string
+      local redis_call       = redis.call
+      local lock_key_prefix  = "L*:"
+      local lock_value       = 1
+      local get              = "GET"
+      local del              = "DEL"
+      local lrange           = "LRANGE"
+      local zrange           = "ZRANGE"
+      local zrem             = "ZREM"
+
+      local function drain_work_orders_for_sender(job_board_key, sender_key)
+
+        if sender_key == empty_string then
+          return {empty_string, {}, 0}
+        end
+
+        local lock_key = lock_key_prefix .. sender_key
+        was_locked = redis_call(get, lock_key)
+
+        if was_locked == 1 then
+          local work_orders = redis_call(lrange, sender_key, 0, -1)
+          redis_call(del, sender_key)
+
+          redis_call(zrem, job_board_key, sender_key)
+
+          return { sender_key, work_orders }
+        else
+          return { sender_key, {} }
+        end
+      end
+
+      return drain_work_orders_for_sender(job_board_key, sender_key)
+    THERE
+
     def initialize(redis_pool, evented, namespace = nil, polling_time = WorkerRoulette::DEFAULT_POLLING_TIME)
       @evented        = evented
       @polling_time   = polling_time
@@ -93,6 +130,30 @@ module WorkerRoulette
         work_orders     = results[1]
         @remaining_jobs = results[2]
         @last_sender    = sender_key.split(':').last
+        work            = work_orders.map {|work_order| WorkerRoulette.load(work_order)}
+        callback.call work if callback
+        work
+      end
+    end
+
+    def get_more_work_for_last_sender(&on_message_callback)
+      return unless on_message_callback
+      require "byebug"; byebug
+      more_work_orders! do |work|
+        on_message_callback.call(work) if work.any?
+        if @evented
+          evented_drain_work_queue!(&on_message_callback)
+        else
+          non_evented_drain_work_queue!(&on_message_callback)
+        end
+      end
+    end
+
+    def more_work_orders!(&callback)
+      @lua.call(LUA_DRAIN_WORK_ORDERS_FOR_SENDER, [job_board_key, @last_sender]) do |results|
+        sender_key      = results[0]
+        raise "wrong sender key returned from LUA_DRAIN_WORK_ORDERS_FOR_SENDER" unless sender_key == @last_sender
+        work_orders     = results[1]
         work            = work_orders.map {|work_order| WorkerRoulette.load(work_order)}
         callback.call work if callback
         work
