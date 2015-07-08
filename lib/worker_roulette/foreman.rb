@@ -33,19 +33,19 @@ module WorkerRoulette
     HERE
 
     def initialize(redis_pool, sender, namespace = nil)
+      @redis_pool = redis_pool
       @sender     = sender
       @namespace  = namespace
-      @redis_pool = redis_pool
       @channel    = namespace || WorkerRoulette::JOB_NOTIFICATIONS
       @lua        = Lua.new(@redis_pool)
     end
 
     def enqueue_work_order(work_order, headers = {}, &callback)
       work_order = {'headers' => default_headers.merge(headers), 'payload' => work_order}
-      enqueue_work_order_without_headers(work_order, &callback)
+      enqueue(work_order, &callback)
     end
 
-    def enqueue_work_order_without_headers(work_order, &callback)
+    def enqueue(work_order, &callback)
       @lua.call(LUA_ENQUEUE_WORK_ORDERS, [counter_key, job_board_key, sender_key, @channel],
                 [WorkerRoulette.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
     end
@@ -65,7 +65,8 @@ module WorkerRoulette
     private
 
     def default_headers
-      Hash['sender' => sender]
+      { "sender" => sender, "queued_at" => Time.now.nsec.to_s }
     end
+
   end
 end
