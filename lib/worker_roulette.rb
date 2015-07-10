@@ -13,6 +13,16 @@ module WorkerRoulette
     JOB_BOARD = "job_board"
     JOB_NOTIFICATIONS = "new_job_ready"
     DEFAULT_POLLING_TIME = 2
+    DEFAULT_REDIS_CONFIG = {
+      host: 'localhost',
+      port: 6379,
+      db: 14,
+      driver: :hiredis,
+      timeout: 5,
+      evented: false,
+      pool_size: 10,
+      polling_time: DEFAULT_POLLING_TIME
+    }
 
     def self.dump(obj)
       Oj.dump(obj)
@@ -44,25 +54,45 @@ module WorkerRoulette
     end
 
     private_class_method :new
+    attr_reader :preprocessors
 
     def initialize(config = {})
-      @redis_config               = { host: 'localhost', port: 6379, db: 14, driver: :hiredis, timeout: 5, evented: false, pool_size: 10 , polling_time: DEFAULT_POLLING_TIME}.merge(config)
-      @pool_config                = Hash[size: @redis_config.delete(:pool_size), timeout: @redis_config.delete(:timeout)]
+      @redis_config               = DEFAULT_REDIS_CONFIG.merge(config)
+      @pool_config                = { size: @redis_config.delete(:pool_size), timeout: @redis_config.delete(:timeout) }
       @evented                    = @redis_config.delete(:evented)
       @polling_time               = @redis_config.delete(:polling_time)
 
       @foreman_connection_pool    = ConnectionPool.new(@pool_config) {new_redis}
       @tradesman_connection_pool  = ConnectionPool.new(@pool_config) {new_redis}
+
+      @preprocessors = []
+
+      configure_latency_tracker(config.delete(:latency_tracker))
+    end
+
+    def configure_latency_tracker(config)
+      puts "WR:config: #{config}"
+      return unless config
+
+      QueueLatencyTracker.configure(
+        {
+          server_name: `hostname`.chomp,
+          logstash_server_ip: Resolv::DNS.new.getaddress(config[:logstash_server_name]).to_s,
+          logstash_port: config[:logstash_port]
+        }
+      )
+
+      preprocessors << QueueLatencyTracker
     end
 
     def foreman(sender, namespace = nil)
       raise "WorkerRoulette not Started" unless @foreman_connection_pool
-      Foreman.new(@foreman_connection_pool, sender, namespace)
+      Foreman.new(@foreman_connection_pool, sender, namespace, preprocessors)
     end
 
     def tradesman(namespace = nil, polling_time = DEFAULT_POLLING_TIME)
       raise "WorkerRoulette not Started" unless @tradesman_connection_pool
-      Tradesman.new(@tradesman_connection_pool, @evented, namespace, polling_time || @polling_time)
+      Tradesman.new(@tradesman_connection_pool, @evented, namespace, polling_time || @polling_time, preprocessors)
     end
 
     def tradesman_connection_pool
