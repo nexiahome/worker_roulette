@@ -70,7 +70,7 @@ module WorkerRoulette
     private
 
     def default_headers
-      { "sender" => sender, "queued_at" => (Time.now.to_f * 1000000).to_i }
+      { "sender" => sender }
     end
 
   end
