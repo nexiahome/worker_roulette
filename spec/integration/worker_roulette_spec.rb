@@ -8,7 +8,7 @@ module WorkerRoulette
     let(:sender)                            { 'katie_80' }
     let(:work_orders)                       { ["hello", "foreman"] }
     let(:queued_at)                         { 1234567 }
-    let(:default_headers)                   { Hash["headers" => { "sender" => sender, "queued_at" => Time.now.to_i }] }
+    let(:default_headers)                   { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
     let(:hello_work_order)                  { Hash['payload' => "hello"] }
     let(:foreman_work_order)                { Hash['payload' => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ 'payload' => work_orders }) }
@@ -17,12 +17,12 @@ module WorkerRoulette
 
     let(:redis) { Redis.new(worker_roulette.redis_config) }
 
-    before do
+    before :each do
       redis.flushall
     end
 
-    before do
-      allow_any_instance_of(Time).to receive(:now).and_return(queued_at)
+    before :each do
+      allow(Time).to receive(:now).and_return(queued_at)
     end
 
     it "exists" do
@@ -30,48 +30,48 @@ module WorkerRoulette
     end
 
     context Foreman do
-      let(:subject) { worker_roulette.foreman(sender) }
+      subject(:foreman) { worker_roulette.foreman(sender) }
 
       it "works on behalf of a sender" do
-        expect(subject.sender).to eq(sender)
+        expect(foreman.sender).to eq(sender)
       end
 
       it "enqueues two work_orders in the sender's work queue" do
-        subject.enqueue_work_order(work_orders.first) {}
-        subject.enqueue_work_order(work_orders.last) {}
+        foreman.enqueue_work_order(work_orders.first) {}
+        foreman.enqueue_work_order(work_orders.last) {}
         expect(redis.lrange(sender, 0, -1)).to eq(work_orders.map { |m| WorkerRoulette.dump(default_headers.merge({ 'payload' => m })) })
       end
 
       it "enqueues an array of work_orders without headers in the sender's work queue" do
-        subject.enqueue(work_orders)
+        foreman.enqueue(work_orders)
         expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders)])
       end
 
       it "enqueues an array of work_orders with default headers in the sender's work queue" do
-        subject.enqueue_work_order(work_orders)
+        foreman.enqueue_work_order(work_orders)
         expect(redis.lrange(sender, 0, -1)).to eq(jsonized_work_orders_with_headers)
       end
 
       it "enqueues an array of work_orders with additional headers in the sender's work queue" do
         extra_headers = { 'foo' => 'bars' }
-        subject.enqueue_work_order(work_orders, extra_headers)
+        foreman.enqueue_work_order(work_orders, extra_headers)
         work_orders_with_headers['headers'].merge!(extra_headers)
         expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders_with_headers)])
       end
 
       it "posts the sender's id to the job board with an order number" do
-        subject.enqueue_work_order(work_orders.first)
+        foreman.enqueue_work_order(work_orders.first)
         worker_roulette.foreman('other_forman').enqueue_work_order(work_orders.last)
-        expect(redis.zrange(subject.job_board_key, 0, -1, with_scores: true)).to eq([[sender, 1.0], ["other_forman", 2.0]])
+        expect(redis.zrange(foreman.job_board_key, 0, -1, with_scores: true)).to eq([[sender, 1.0], ["other_forman", 2.0]])
       end
 
       it "generates a monotically increasing score for senders not on the job board, but not for senders already there" do
         other_forman = worker_roulette.foreman('other_forman')
-        expect(redis.get(subject.counter_key)).to be_nil
-        subject.enqueue_work_order(work_orders.first)
-        expect(redis.get(subject.counter_key)).to eq("1")
-        subject.enqueue_work_order(work_orders.last)
-        expect(redis.get(subject.counter_key)).to eq("1")
+        expect(redis.get(foreman.counter_key)).to be_nil
+        foreman.enqueue_work_order(work_orders.first)
+        expect(redis.get(foreman.counter_key)).to eq("1")
+        foreman.enqueue_work_order(work_orders.last)
+        expect(redis.get(foreman.counter_key)).to eq("1")
         other_forman.enqueue_work_order(work_orders.last)
         expect(redis.get(other_forman.counter_key)).to eq("2")
       end

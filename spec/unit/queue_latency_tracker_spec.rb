@@ -22,9 +22,10 @@ module QueueLatencyTracker
 
   describe Foreman do
     describe "#process" do
+      let(:channel)        { "a_channel" }
       let(:queued_at)      { 1234567 }
       let(:raw_work_order) { { "headers" => {}, "payload" => "aPayload" } }
-      let(:work_order)     { subject.process(raw_work_order) }
+      let(:work_order)     { subject.process(raw_work_order, channel) }
 
       before { allow(Time).to receive(:now).and_return(queued_at) }
 

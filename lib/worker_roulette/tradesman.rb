@@ -1,6 +1,9 @@
+require_relative "preprocessor"
+
 module WorkerRoulette
   class Tradesman
-    attr_reader :last_sender, :remaining_jobs, :timer
+    include Preprocessor
+    attr_reader :last_sender, :remaining_jobs, :timer, :preprocessors, :channel
 
     LUA_DRAIN_WORK_ORDERS = <<-HERE
       local empty_string      = ""
@@ -102,9 +105,10 @@ module WorkerRoulette
       return drain_work_orders_for_sender(job_board_key, sender_key)
     THERE
 
-    def initialize(redis_pool, evented, namespace = nil, polling_time = WorkerRoulette::DEFAULT_POLLING_TIME)
+    def initialize(redis_pool, evented, namespace = nil, polling_time = WorkerRoulette::DEFAULT_POLLING_TIME, preprocessors = [])
       @evented        = evented
       @polling_time   = polling_time
+      @preprocessors  = preprocessors
       @redis_pool     = redis_pool
       @namespace      = namespace
       @channel        = namespace || WorkerRoulette::JOB_NOTIFICATIONS
@@ -130,7 +134,7 @@ module WorkerRoulette
         work_orders     = results[1]
         @remaining_jobs = results[2]
         @last_sender    = sender_key.split(':').last
-        work            = work_orders.map {|work_order| WorkerRoulette.load(work_order)}
+        work = work_orders.map { |wo| preprocess(WorkerRoulette.load(wo), channel) }
         callback.call work if callback
         work
       end

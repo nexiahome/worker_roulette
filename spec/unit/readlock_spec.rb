@@ -8,7 +8,7 @@ module WorkerRoulette
     let(:work_orders)              { "hello" }
     let(:lock_key)                 { "L*:#{sender}" }
     let(:queued_at)                { 1234567 }
-    let(:default_headers)          { Hash["headers" => { "sender" => sender, "queued_at" => Time.now.to_i }] }
+    let(:default_headers)          { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
     let(:work_orders_with_headers) { default_headers.merge({ "payload" => work_orders }) }
     let(:foreman1)                 { worker_roulette.foreman(sender) }
     let(:foreman2)                 { worker_roulette.foreman("foreman2") }
@@ -20,7 +20,7 @@ module WorkerRoulette
       lua.clear_cache!
       redis.script(:flush)
       redis.flushdb
-      allow_any_instance_of(Time).to receive(:now).and_return(queued_at)
+      allow(Time).to receive(:now).and_return(queued_at)
       foreman1.enqueue_work_order(work_orders)
       expect(tradesman_1.work_orders!).to eq([work_orders_with_headers])
     end

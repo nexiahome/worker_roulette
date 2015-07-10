@@ -7,7 +7,7 @@ module WorkerRoulette
     let(:sender)                            { "katie_80" }
     let(:work_orders)                       { ["hello", "foreman"] }
     let(:queued_at)                         { 1234567 }
-    let(:default_headers)                   { Hash["headers" => { "sender" => sender, "queued_at" => Time.now.to_i }] }
+    let(:default_headers)                   { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
     let(:hello_work_order)                  { Hash["payload" => "hello"] }
     let(:foreman_work_order)                { Hash["payload" => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ "payload" => work_orders }) }
@@ -16,7 +16,7 @@ module WorkerRoulette
     let(:redis)                             { Redis.new(worker_roulette.redis_config) }
 
     before do
-      allow_any_instance_of(Time).to receive(:now).and_return(queued_at)
+      allow(Time).to receive(:now).and_return(queued_at)
     end
 
     context "Evented Foreman" do

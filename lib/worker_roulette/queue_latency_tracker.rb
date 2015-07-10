@@ -2,7 +2,7 @@ module QueueLatencyTracker
   GRANULARITY = 1_000_000
 
   class Foreman
-    def process(work_order)
+    def process(work_order, _channel)
       work_order['headers'].merge!("queued_at" => (Time.now.to_f * GRANULARITY).to_i)
       work_order
     end

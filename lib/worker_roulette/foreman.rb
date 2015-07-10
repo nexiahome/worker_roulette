@@ -1,6 +1,10 @@
+require_relative "preprocessor"
+
 module WorkerRoulette
   class Foreman
-    attr_reader :sender, :namespace, :channel
+    include Preprocessor
+
+    attr_reader :sender, :namespace, :channel, :preprocessors
 
     LUA_ENQUEUE_WORK_ORDERS = <<-HERE
       local counter_key       = KEYS[1]
@@ -32,12 +36,13 @@ module WorkerRoulette
       enqueue_work_orders(work_order, job_notification)
     HERE
 
-    def initialize(redis_pool, sender, namespace = nil)
-      @redis_pool = redis_pool
-      @sender     = sender
-      @namespace  = namespace
-      @channel    = namespace || WorkerRoulette::JOB_NOTIFICATIONS
-      @lua        = Lua.new(@redis_pool)
+    def initialize(redis_pool, sender, namespace = nil, preprocessors = [])
+      @redis_pool    = redis_pool
+      @sender        = sender
+      @preprocessors = preprocessors
+      @namespace     = namespace
+      @channel       = namespace || WorkerRoulette::JOB_NOTIFICATIONS
+      @lua           = Lua.new(@redis_pool)
     end
 
     def enqueue_work_order(work_order, headers = {}, &callback)
@@ -47,7 +52,7 @@ module WorkerRoulette
 
     def enqueue(work_order, &callback)
       @lua.call(LUA_ENQUEUE_WORK_ORDERS, [counter_key, job_board_key, sender_key, @channel],
-                [WorkerRoulette.dump(work_order),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
+                [WorkerRoulette.dump(preprocess(work_order, channel)),  WorkerRoulette::JOB_NOTIFICATIONS], &callback)
     end
 
     def job_board_key
