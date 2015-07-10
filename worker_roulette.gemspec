@@ -6,7 +6,7 @@ require 'worker_roulette/version'
 Gem::Specification.new do |spec|
   spec.name          = 'nexia_worker_roulette'
   spec.version       = WorkerRoulette::VERSION
-  spec.authors       = ['Paul Saieg']
+  spec.authors       = ['Paul Saieg', 'James Barnard', 'Eric Schwartz']
   spec.email         = ['classicist@gmail.com']
   spec.description   = %q{Pub Sub Queue for Redis that ensures ordered processing}
   spec.summary       = %q{Pub Sub Queue for Redis that ensures ordered processing}
