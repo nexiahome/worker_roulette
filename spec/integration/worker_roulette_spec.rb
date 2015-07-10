@@ -1,4 +1,5 @@
 require "spec_helper"
+
 module WorkerRoulette
   class Tradesman
     attr_reader :lua
@@ -13,7 +14,13 @@ module WorkerRoulette
     let(:foreman_work_order)                { Hash['payload' => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ 'payload' => work_orders }) }
     let(:jsonized_work_orders_with_headers) { [WorkerRoulette.dump(work_orders_with_headers)] }
-    let(:worker_roulette)                   { WorkerRoulette.start }
+    let(:latency_tracker)          {
+        {
+          logstash_server_name: "localhost",
+          logstash_port: 7777
+        }
+    }
+    let(:worker_roulette)          { WorkerRoulette.start(evented: false, latency_tracker: latency_tracker) }
 
     let(:redis) { Redis.new(worker_roulette.redis_config) }
 
@@ -56,13 +63,17 @@ module WorkerRoulette
         extra_headers = { 'foo' => 'bars' }
         foreman.enqueue_work_order(work_orders, extra_headers)
         work_orders_with_headers['headers'].merge!(extra_headers)
-        expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders_with_headers)])
+        redis_work_orders = redis.lrange(sender, 0, -1)
+        work_orders = redis_work_orders.map {|wo| Oj.load(wo.to_s) }
+        expect(work_orders).to eq([work_orders_with_headers])
       end
 
       it "posts the sender's id to the job board with an order number" do
         foreman.enqueue_work_order(work_orders.first)
         worker_roulette.foreman('other_forman').enqueue_work_order(work_orders.last)
-        expect(redis.zrange(foreman.job_board_key, 0, -1, with_scores: true)).to eq([[sender, 1.0], ["other_forman", 2.0]])
+        redis_work_orders = redis.zrange(foreman.job_board_key, 0, -1, with_scores: true)
+        work_orders = redis_work_orders.map {|wo| Oj.load(wo.to_s) }
+        expect(work_orders).to eq([[sender, 1.0], ["other_forman", 2.0]])
       end
 
       it "generates a monotically increasing score for senders not on the job board, but not for senders already there" do

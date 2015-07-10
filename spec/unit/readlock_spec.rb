@@ -1,8 +1,14 @@
 require "spec_helper"
 
 module WorkerRoulette
- describe "Read Lock" do
-    let(:worker_roulette)          { WorkerRoulette.start(evented: false) }
+  describe "Read Lock" do
+    let(:latency_tracker)          {
+        {
+          logstash_server_name: "localhost",
+          logstash_port: 7777
+        }
+    }
+    let(:worker_roulette)          { WorkerRoulette.start(evented: false, latency_tracker: latency_tracker) }
     let(:redis)                    { Redis.new(worker_roulette.redis_config) }
     let(:sender)                   { "katie_80" }
     let(:work_orders)              { "hello" }

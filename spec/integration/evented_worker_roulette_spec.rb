@@ -12,7 +12,13 @@ module WorkerRoulette
     let(:foreman_work_order)                { Hash["payload" => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ "payload" => work_orders }) }
     let(:jsonized_work_orders_with_headers) { [WorkerRoulette.dump(work_orders_with_headers)] }
-    let(:worker_roulette)                   { WorkerRoulette.start(evented: true) }
+    let(:latency_tracker)                   {
+        {
+          logstash_server_name: "localhost",
+          logstash_port: 7777
+        }
+    }
+    let(:worker_roulette)                   { WorkerRoulette.start(evented: true, latency_tracker: latency_tracker) }
     let(:redis)                             { Redis.new(worker_roulette.redis_config) }
 
     before do
@@ -59,7 +65,9 @@ module WorkerRoulette
         extra_headers = {"foo" => "bars"}
         foreman.enqueue_work_order(work_orders, extra_headers) do
           work_orders_with_headers["headers"].merge!(extra_headers)
-          expect(redis.lrange(sender, 0, -1)).to eq([WorkerRoulette.dump(work_orders_with_headers)])
+          redis_work_orders = redis.lrange(sender, 0, -1)
+          work_orders = redis_work_orders.map {|wo| Oj.load(wo.to_s) }
+          expect(work_orders).to eq([work_orders_with_headers])
           done
         end
       end

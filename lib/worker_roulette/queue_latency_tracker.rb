@@ -3,7 +3,8 @@ module QueueLatencyTracker
 
   class Foreman
     def process(work_order, _channel)
-      work_order['headers'].merge!("queued_at" => (Time.now.to_f * GRANULARITY).to_i)
+      work_order['headers'].merge!(
+        "queued_at" => (Time.now.to_f * GRANULARITY).to_i) if work_order.is_a?(Hash) && work_order["headers"]
       work_order
     end
   end
