@@ -71,7 +71,6 @@ module WorkerRoulette
     end
 
     def configure_latency_tracker(config)
-      puts "WR:config: #{config}"
       return unless config
 
       QueueLatencyTracker.configure(
