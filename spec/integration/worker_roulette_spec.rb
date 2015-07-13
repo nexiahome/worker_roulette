@@ -7,20 +7,15 @@ module WorkerRoulette
 
   describe WorkerRoulette do
     let(:sender)                            { 'katie_80' }
+    let(:queued_at)       { 1234567 }
     let(:work_orders)                       { ["hello", "foreman"] }
-    let(:queued_at)                         { 1234567 }
-    let(:default_headers)                   { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
+    let(:default_headers)                   { Hash["headers" => { "sender" => sender }] }
     let(:hello_work_order)                  { Hash['payload' => "hello"] }
     let(:foreman_work_order)                { Hash['payload' => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ 'payload' => work_orders }) }
     let(:jsonized_work_orders_with_headers) { [WorkerRoulette.dump(work_orders_with_headers)] }
-    let(:latency_tracker)          {
-        {
-          logstash_server_name: "localhost",
-          logstash_port: 7777
-        }
-    }
-    let(:worker_roulette)          { WorkerRoulette.start(evented: false, latency_tracker: latency_tracker) }
+    let(:worker_roulette)                   { WorkerRoulette.start(evented: false, latency_tracker: latency_tracker) }
+    let(:latency_tracker)                   { nil }
 
     let(:redis) { Redis.new(worker_roulette.redis_config) }
 
@@ -155,10 +150,21 @@ module WorkerRoulette
         end
       end
 
-      it "sees queued_at in the header" do
-        tradesman.wait_for_work_orders do |redis_work_orders|
-          expect(redis_work_orders.first["headers"]["queued_at"]).to_not be_nil
-          allow(tradesman).to receive(:wait_for_work_orders)
+      context "when latency tracker is enabled" do
+        let(:default_headers) { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
+        let(:queued_at)       { 1234567 }
+        let(:latency_tracker) {
+          {
+            logstash_server_name: "localhost",
+            logstash_port: 7777
+          }
+        }
+
+        it "sees queued_at in the header" do
+          tradesman.wait_for_work_orders do |redis_work_orders|
+            expect(redis_work_orders.first["headers"]["queued_at"]).to_not be_nil
+            allow(tradesman).to receive(:wait_for_work_orders)
+          end
         end
       end
 
