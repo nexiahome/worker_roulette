@@ -76,7 +76,7 @@ module WorkerRoulette
       QueueLatencyTracker.configure(
         {
           server_name: `hostname`.chomp,
-          logstash_server_ip: Resolv::DNS.new.getaddress(config[:logstash_server_name]).to_s,
+          logstash_server_ip: ip_address(config[:logstash_server_name]),
           logstash_port: config[:logstash_port]
         }
       )
@@ -111,6 +111,10 @@ module WorkerRoulette
     end
 
     private
+
+    def ip_address(server_name)
+      server_name == "localhost" ? "127.0.0.1" : Resolv::DNS.new.getaddress(server_name).to_s
+    end
 
     def new_redis
       if @evented
