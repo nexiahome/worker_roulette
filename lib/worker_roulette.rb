@@ -67,21 +67,21 @@ module WorkerRoulette
 
       @preprocessors = []
 
-      configure_latency_tracker(config.delete(:latency_tracker))
+      configure_queue_tracker(config.delete(:metric_tracker))
     end
 
-    def configure_latency_tracker(config)
+    def configure_queue_tracker(config)
       return unless config
 
-      QueueLatencyTracker.configure(
+      QueueMetricTracker.configure(
         {
           server_name: `hostname`.chomp,
-          logstash_server_ip: ip_address(config[:logstash_server_name]),
-          logstash_port: config[:logstash_port]
+          metric_host: config[:metric_host],
+          metric_host_port: config[:metric_host_port]
         }
       )
 
-      preprocessors << QueueLatencyTracker
+      preprocessors << QueueLatency
     end
 
     def foreman(sender, namespace = nil)
@@ -111,10 +111,6 @@ module WorkerRoulette
     end
 
     private
-
-    def ip_address(server_name)
-      server_name == "localhost" ? "127.0.0.1" : Resolv::DNS.new.getaddress(server_name).to_s
-    end
 
     def new_redis
       if @evented

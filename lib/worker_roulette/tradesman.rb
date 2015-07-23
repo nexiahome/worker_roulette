@@ -134,6 +134,8 @@ module WorkerRoulette
         work_orders     = results[1]
         @remaining_jobs = results[2]
         @last_sender    = sender_key.split(':').last
+
+        QueueDepth.new(channel).monitor(*results) if queue_metrics_in_play?
         work = work_orders.map { |wo| preprocess(WorkerRoulette.load(wo), channel) }
         callback.call work if callback
         work
@@ -168,6 +170,10 @@ module WorkerRoulette
     end
 
     private
+
+    def queue_metrics_in_play?
+      preprocessors.any?
+    end
 
     def evented_drain_work_queue!(&on_message_callback)
       if remaining_jobs > 0

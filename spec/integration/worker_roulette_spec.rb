@@ -14,8 +14,8 @@ module WorkerRoulette
     let(:foreman_work_order)                { Hash['payload' => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ 'payload' => work_orders }) }
     let(:jsonized_work_orders_with_headers) { [WorkerRoulette.dump(work_orders_with_headers)] }
-    let(:worker_roulette)                   { WorkerRoulette.start(evented: false, latency_tracker: latency_tracker) }
-    let(:latency_tracker)                   { nil }
+    let(:worker_roulette)                   { WorkerRoulette.start(evented: false, metric_tracker: metric_tracker) }
+    let(:metric_tracker)                   { nil }
 
     let(:redis) { Redis.new(worker_roulette.redis_config) }
 
@@ -153,10 +153,10 @@ module WorkerRoulette
       context "when latency tracker is enabled" do
         let(:default_headers) { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
         let(:queued_at)       { 1234567 }
-        let(:latency_tracker) {
+        let(:metric_tracker) {
           {
-            logstash_server_name: "localhost",
-            logstash_port: 7777
+            metric_host:     "localhost",
+            metric_host_port: 7777
           }
         }
 
