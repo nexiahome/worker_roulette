@@ -77,7 +77,8 @@ module WorkerRoulette
         {
           server_name: `hostname`.chomp,
           metric_host: config[:metric_host],
-          metric_host_port: config[:metric_host_port]
+          metric_host_port: config[:metric_host_port],
+          metrics: config[:metrics]
         }
       )
 

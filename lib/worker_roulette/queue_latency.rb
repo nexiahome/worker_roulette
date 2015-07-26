@@ -24,7 +24,7 @@ module WorkerRoulette
         latency_ns = (Time.now.to_f * GRANULARITY).to_i - queued_at
 
         if value = calculate_stats(:queue_latency, latency_ns / 1000.0)
-          tracker_send(monitor_json("queue_latency (ms)", channel, value))
+          tracker_send(message("queue_latency(ms)", channel, value))
         end
       end
     end
