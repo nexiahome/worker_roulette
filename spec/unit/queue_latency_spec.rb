@@ -30,7 +30,7 @@ module WorkerRoulette::QueueLatency
       let(:raw_work_order)  { { "headers" => headers, "payload" => "aPayload" } }
       let(:metric_config)   { { host_ip: ip, host_port: port } }
       let(:config)          { { metric_host: metric_config, server_name: server_name } }
-      let(:expected_json)   { %({"server_name":"#{server_name}","queue_latency (ms)":#{latency},"channel":"#{channel}"}) }
+      let(:expected_msg)    { "queue_latency(ms),server_name=server.example,channel=a_channel value=123.432 1234690432000000" }
 
       before { allow(QueueMetricTracker).to receive(:config).and_return(config) }
       before { allow(Time).to receive(:now).and_return(queued_at / GRANULARITY + latency) }
@@ -39,7 +39,7 @@ module WorkerRoulette::QueueLatency
       before { allow(QueueMetricTracker).to receive(:ipaddress).and_return(ip) }
 
       it "passes the right json to logstash_send" do
-        expect_any_instance_of(UDPSocket).to receive(:send).with(expected_json, 0, ip, port)
+        expect_any_instance_of(UDPSocket).to receive(:send).with(expected_msg, 0, ip, port)
 
         subject.process(raw_work_order, channel)
       end
