@@ -4,7 +4,7 @@ module QueueMetricTracker
   end
 
   def granularity
-    config[:granularity] || 1
+    config[:granularity] || 100
   end
 
   def calculate_stats(stat_name, value)
@@ -29,9 +29,8 @@ module QueueMetricTracker
 
   def enabled?
     return false unless config && config[:metrics]
-    puts "enabled?: #{config.inspect}"
 
-    klass = self.class.to_s.split("::").last.underscore
+    klass = self.class.to_s.split("::").last.underscore.to_sym
     config[:metrics][klass] rescue false
   end
 
@@ -41,6 +40,7 @@ module QueueMetricTracker
       @calculators = {}
       @config = {
         server_name: options[:server_name],
+        granularity: options[:granularity],
         metric_host: {
           host_ip:   ip_address(options[:metric_host]),
           host_port: options[:metric_host_port]

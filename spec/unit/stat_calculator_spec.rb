@@ -16,11 +16,11 @@ module QueueMetricTracker
 
     describe "#add" do
       let(:granularity)         { 3 }
-      let(:value1)  { 4 }
-      let(:value2)  { 3 }
-      let(:value3)  { 8 }
-      let(:average) { 5 }
-      subject(:calculator) { described_class.new(granularity) }
+      let(:value1)              { 4 }
+      let(:value2)              { 3 }
+      let(:value3)              { 8 }
+      let(:average)             { 5 }
+      subject(:calculator)      { described_class.new(granularity) }
 
       it "calculates average of N values" do
         expect(subject.add(value1)).to be_nil
