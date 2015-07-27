@@ -28,11 +28,11 @@ module QueueMetricTracker
   end
 
   def enabled?
-    return false if config.empty? || config[:metrics].empty?
+    return false unless config && config[:metrics]
     puts "enabled?: #{config.inspect}"
 
-    klass = self.class.to_s.split("::").last.underscore.to_sym
-    config[:metrics].first[klass] rescue false
+    klass = self.class.to_s.split("::").last.underscore
+    config[:metrics][klass] rescue false
   end
 
   class << self
@@ -44,9 +44,11 @@ module QueueMetricTracker
         metric_host: {
           host_ip:   ip_address(options[:metric_host]),
           host_port: options[:metric_host_port]
-        },
-        metrics: [options[:metrics]]
+        }
       }
+      @config.merge!({
+        metrics: options[:metrics]
+      }) if options[:metrics]
     end
 
     def included(tracker)
