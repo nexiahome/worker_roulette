@@ -57,6 +57,7 @@ module WorkerRoulette
     attr_reader :preprocessors
 
     def initialize(config = {})
+      config.recursive_symbolize_keys!
       @redis_config               = DEFAULT_REDIS_CONFIG.merge(config)
       @pool_config                = { size: @redis_config.delete(:pool_size), timeout: @redis_config.delete(:timeout) }
       @evented                    = @redis_config.delete(:evented)
@@ -76,6 +77,7 @@ module WorkerRoulette
       QueueMetricTracker.configure(
         {
           server_name: `hostname`.chomp,
+          granularity: config[:granularity],
           metric_host: config[:metric_host],
           metric_host_port: config[:metric_host_port],
           metrics: config[:metrics]
