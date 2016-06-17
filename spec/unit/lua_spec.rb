@@ -2,7 +2,7 @@ require 'spec_helper'
 module WorkerRoulette
  describe Lua do
     include EventedSpec::EMSpec
-    let(:worker_roulette) {WorkerRoulette.start(evented: true)}
+    let(:worker_roulette) {WorkerRoulette.start(evented: true, host: '127.0.0.1') }
     let(:lua) { Lua.new(worker_roulette.tradesman_connection_pool) }
     let(:redis) {Redis.new(worker_roulette.redis_config)}
 

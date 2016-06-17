@@ -12,14 +12,15 @@ module WorkerRoulette
     let(:foreman_work_order)                { Hash["payload" => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ "payload" => work_orders }) }
     let(:jsonized_work_orders_with_headers) { [WorkerRoulette.dump(work_orders_with_headers)] }
-    let(:metric_tracker)                   {
+
+    let(:metric_tracker) {
         {
           metric_host:     "localhost",
           metric_host_port: 7777
         }
     }
-    let(:worker_roulette)                   { WorkerRoulette.start(evented: true, metric_tracker: metric_tracker) }
-    let(:redis)                             { Redis.new(worker_roulette.redis_config) }
+    let(:worker_roulette) { WorkerRoulette.start(evented: true, metric_tracker: metric_tracker, host: '127.0.0.1') }
+    let(:redis) { Redis.new(worker_roulette.redis_config) }
 
     before do
       allow(Time).to receive(:now).and_return(queued_at)

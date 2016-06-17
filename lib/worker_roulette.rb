@@ -49,8 +49,7 @@ module WorkerRoulette
     end
 
     def self.start(config = {})
-      instance = new(config)
-      instance
+      new(config)
     end
 
     private_class_method :new

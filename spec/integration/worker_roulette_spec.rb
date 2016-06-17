@@ -14,7 +14,7 @@ module WorkerRoulette
     let(:foreman_work_order)                { Hash['payload' => "foreman"] }
     let(:work_orders_with_headers)          { default_headers.merge({ 'payload' => work_orders }) }
     let(:jsonized_work_orders_with_headers) { [WorkerRoulette.dump(work_orders_with_headers)] }
-    let(:worker_roulette)                   { WorkerRoulette.start(evented: false, metric_tracker: metric_tracker) }
+    let(:worker_roulette)                   { WorkerRoulette.start(evented: false, metric_tracker: metric_tracker, host: '127.0.0.1') }
     let(:metric_tracker)                   { nil }
 
     let(:redis) { Redis.new(worker_roulette.redis_config) }

@@ -10,7 +10,7 @@ module WorkerRoulette
     let(:queued_at)                { 1234567 }
     let(:default_headers)          { Hash["headers" => { "sender" => sender, "queued_at" => (queued_at.to_f * 1_000_000).to_i }] }
     let(:work_orders_with_headers) { default_headers.merge({ "payload" => work_orders }) }
-    let(:worker_roulette)          { WorkerRoulette.start(evented: true) }
+    let(:worker_roulette)          { WorkerRoulette.start(evented: true, host: '127.0.0.1') }
     let(:foreman1)                 { worker_roulette.foreman(sender) }
     let(:foreman2)                 { worker_roulette.foreman("foreman2") }
     let(:tradesman2 )              { worker_roulette.tradesman }

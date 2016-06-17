@@ -12,7 +12,7 @@ module WorkerRoulette
 
   RSpec.configure do |c|
     c.after(:each) do
-      Redis.new(WorkerRoulette.start.redis_config).flushdb
+      Redis.new(WorkerRoulette.start.redis_config.merge(host: '127.0.0.1')).flushdb
     end
   end
 end
