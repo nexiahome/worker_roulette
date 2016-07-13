@@ -12,7 +12,7 @@ module WorkerRoulette
   class WorkerRoulette
     JOB_BOARD = "job_board"
     JOB_NOTIFICATIONS = "new_job_ready"
-    DEFAULT_POLLING_TIME = 2
+    DEFAULT_POLLING_TIME = 0.01
     DEFAULT_REDIS_CONFIG = {
       host: 'localhost',
       port: 6379,

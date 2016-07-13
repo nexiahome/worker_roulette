@@ -183,7 +183,7 @@ module WorkerRoulette
       if remaining_jobs > 0
         wait_for_work_orders(&on_message_callback)
       else
-        sleep 2
+        sleep 0.01
         wait_for_work_orders(&on_message_callback)
       end
     end
