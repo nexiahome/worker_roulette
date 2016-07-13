@@ -116,7 +116,7 @@ module WorkerRoulette
       it "does not have a last sender if it found no messages" do
         expect(tradesman.work_orders!.length).to eq(1)
         expect(tradesman.work_orders!.length).to eq(0)
-        expect(tradesman.last_sender).to be_nil
+        expect(tradesman.last_sender).to be_empty
       end
 
       it "drains one set of work_orders from the sender's work queue" do
@@ -181,7 +181,7 @@ module WorkerRoulette
         tradesman.wait_for_work_orders do |work|
           expect(work.to_s).to match("some old fashion work")
           expect(work.to_s).not_to match("evil")
-          expect(tradesman.last_sender).to eq('foreman')
+          expect(tradesman.last_sender).to eq('good_channel:foreman')
           allow(tradesman).to receive(:wait_for_work_orders)
         end
       end

@@ -133,7 +133,7 @@ module WorkerRoulette
         sender_key      = results[0]
         work_orders     = results[1]
         @remaining_jobs = results[2]
-        @last_sender    = sender_key.split(':').last
+        @last_sender    = sender_key
 
         QueueMetricTracker.track_all(results) if work_orders.any?
         work = work_orders.map { |wo| preprocess(WorkerRoulette.load(wo), channel) }
